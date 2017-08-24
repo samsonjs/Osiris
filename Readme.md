@@ -1,14 +1,13 @@
 # Osiris
 
-A multipart form encoder for Swift.
+A multipart form encoder for Swift, as well as some other utilities that make
+working with HTTP a bit simpler and more flexible.
 
 # Installation
 
-Copy the file [`MultipartFormEncoder.swift`][code] into your project.
+Copy the files you want to use into your project, and then customize them to suit your needs.
 
-[code]: https://github.com/1SecondEveryday/Osiris/blob/master/MultipartFormEncoder.swift
-
-# Usage
+# Multipart Form Encoding
 
 Create an encoder and then add parts to it as needed:
 
@@ -50,9 +49,87 @@ task.resume()
 
 You can create and add your own parts using the `MultipartFormEncoder.Part` struct and `MultipartFormEncoder.addPart(_ part: Part)`.
 
+# HTTPRequest
+
+Basic usage:
+
+```Swift
+let url = URL(string: "https://example.com")!
+let request = HTTPRequest(method: .get, url: url)
+```
+
+Fancier usage:
+
+```Swift
+let url = URL(string: "https://example.com")!
+let params = ["email" : "someone@example.com", "password" : "secret"]
+let request = HTTPRequest(method: .post, url: url, contentType: .json, parameters: params)
+request.addHeader(name: "x-custom", value: "42")
+request.addMultipartJPEG(name: "avatar", image: UIImage(), quality: 1, filename: "avatar.jpg")
+```
+
+You can build a `URLRequest` from an `HTTPRequest` instance using `RequestBuilder`. Or make your own builder.
+
+# HTTPResponse
+
+This enum makes sense of the 3 parameters of `URLSession`'s completion block. Its initializer takes in the optional `URLResponse`, `Data`, and `Error` values and determines if the request succeeded or failed, taking the HTTP status code into account. 200-level statuses are successes and anything else is a failure.
+
+The success case has two associated values: `HTTPURLResponse` and `Data?`, while the failure case has three associated values: `Error`, `HTTPURLResponse`, and `Data?`.
+
+Some properties are exposed for convenience:
+
+- `data`: the optional body data returned by the server.
+
+- `status`: the HTTP status code returned by the server, or 0 if the request itself failed, e.g. if the server cannot be reached.
+
+- `headers`: a dictionary of headers.
+
+- `bodyString`: the response body as a `String`. This is an empty string if the body is empty or there was an error decoding it as UTF8.
+
+- `dictionaryFromJSON`: the decoded body for JSON responses. This is an empty dictionary if the body is empty or there was an error decoding it as a JSON dictionary.
+
+- `underlyingResponse`: the `HTTPURLResponse` in case you need to dive in.
+
+# RequestBuilder
+
+This class takes in an `HTTPRequest` instance and turns it into a `URLRequest` for use with `URLSession`.
+
+Usage:
+
+```Swift
+let urlRequest: URLRequest
+do {
+    urlRequest = try RequestBuilder.build(request: request)
+}
+catch {
+    log.error("Invalid request \(request): \(error)")
+    return
+}
+// ... do something with urlRequest
+```
+
+It encodes multipart requests in memory, so you'll need to change it or make your own builder for advanced functionality like encoding multipart forms to disk instead.
+
+# FormEncoder
+
+This was lifted from [Alamofire][], but with some minor changes.
+
+```Swift
+let body = FormEncoder.encode(["email" : "someone@example.com", "password" : "secret"])
+// => "email=someone%40example.com&password=secret"
+```
+
+[Alamofire]: https://github.com/Alamofire/Alamofire
+
+# Service: Putting it all Together
+
+Take a look at `Service.swift` to see how it can all come together. Grafting your specific service API onto the primitives shown there is an exercise. In 1SE we're just adding methods to `Service` for each specific call, but you could keep them separate instead if you prefer that.
+
+I don't recommend you use `Service` as shown here, but maybe use it as a jumping off point for something that makes sense to you for your specific application.
+
 # Credits
 
-Created by Sami Samhuri for [1SE][].
+Mostly created by Sami Samhuri for [1SE][]. `FormEncoder.swift` was lifted from [Alamofire][].
 
 [1SE]: http://1se.co
 
