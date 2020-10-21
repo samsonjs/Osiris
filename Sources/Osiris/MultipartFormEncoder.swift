@@ -55,17 +55,11 @@ extension MultipartFormEncoder {
 final class MultipartFormEncoder {
     let boundary: String
 
-    private var parts: [Part] = []
-
     init(boundary: String? = nil) {
         self.boundary = boundary ?? "LifeIsMadeOfSeconds-\(UUID().uuidString)"
     }
 
-    func addPart(_ part: Part) {
-        parts.append(part)
-    }
-
-    func encode() -> Body {
+    func encode(parts: [Part]) -> Body {
         var bodyData = Data()
         for part in parts {
             // Header

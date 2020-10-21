@@ -12,17 +12,19 @@ Copy the files you want to use into your project, and then customize them to sui
 Create an encoder and then add parts to it as needed:
 
 ```Swift
-let encoder = MultipartFormEncoder()
-encoder.addPart(.text(name: "email", text: "somebody@example.com"))
-encoder.addPart(.text(name: "password", text: "secret"))
 let avatarData = UIImage(from: somewhere).jpegData(compressionQuality: 1)
-encoder.addPart(.binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"))
+let encoder = MultipartFormEncoder()
+let body = encoder.encode(parts: [
+    .text(name: "email", text: "somebody@example.com"),
+    .text(name: "password", text: "secret"),
+    .binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"),
+])
 ```
 
 The entire form is encoded as `Data` in memory so you may not want to use this for more than a few megabytes at a time:
 
 ```Swift
-let body = encoder.encode()
+let body = encoder.encode(parts: [/* ... */])
 var request = URLRequest(url: URL(string: "https://example.com/accounts")!)
 request.httpMethod = "POST"
 request.httpBody = body.data

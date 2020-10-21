@@ -37,10 +37,7 @@ final class RequestBuilder {
 
             case .multipart:
                 let encoder = MultipartFormEncoder()
-                for part in request.parts {
-                    encoder.addPart(part)
-                }
-                let body = encoder.encode()
+                let body = encoder.encode(parts: request.parts)
                 result.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
                 result.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
                 result.httpBody = body.data

@@ -30,15 +30,14 @@ class MultipartFormEncoderTests: XCTestCase {
     }
 
     func testEncodeNothing() throws {
-        let body = subject.encode()
+        let body = subject.encode(parts: [])
         XCTAssertEqual(body.contentType, "multipart/form-data; boundary=\"SuperAwesomeBoundary\"")
         AssertBodyEqual(body.data, "--SuperAwesomeBoundary--")
     }
 
     func testEncodeText() throws {
-        subject.addPart(.text(name: "name", value: "Tina"))
         AssertBodyEqual(
-            subject.encode().data,
+            subject.encode(parts: [.text(name: "name", value: "Tina")]).data,
             [
                 "--SuperAwesomeBoundary",
                 "Content-Disposition: form-data; name=\"name\"",
@@ -50,9 +49,11 @@ class MultipartFormEncoderTests: XCTestCase {
     }
 
     func testEncodeData() throws {
-        subject.addPart(.binary(name: "video", data: Data("phony video data".utf8), type: "video/mp4", filename: "LiesSex&VideoTape.mp4"))
+        let data = Data("phony video data".utf8)
         AssertBodyEqual(
-            subject.encode().data,
+            subject.encode(parts: [
+                .binary(name: "video", data: data, type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
+            ]).data,
             [
                 "--SuperAwesomeBoundary",
                 "Content-Disposition: form-data; name=\"video\"; filename=\"LiesSex&VideoTape.mp4\"",
@@ -66,12 +67,15 @@ class MultipartFormEncoderTests: XCTestCase {
     }
 
     func testEncodeEverything() throws {
-        subject.addPart(.text(name: "name", value: "Queso"))
-        subject.addPart(.binary(name: "image", data: Data("phony image data".utf8), type: "image/jpeg", filename: "feltcute.jpg"))
-        subject.addPart(.text(name: "spot", value: "top of the bbq"))
-        subject.addPart(.binary(name: "video", data: Data("phony video data".utf8), type: "video/mp4", filename: "LiesSex&VideoTape.mp4"))
+        let imageData = Data("phony image data".utf8)
+        let videoData = Data("phony video data".utf8)
         AssertBodyEqual(
-            subject.encode().data,
+            subject.encode(parts: [
+                .text(name: "name", value: "Queso"),
+                .binary(name: "image", data: imageData, type: "image/jpeg", filename: "feltcute.jpg"),
+                .text(name: "spot", value: "top of the bbq"),
+                .binary(name: "video", data: videoData, type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
+            ]).data,
             [
                 "--SuperAwesomeBoundary",
                 "Content-Disposition: form-data; name=\"name\"",
