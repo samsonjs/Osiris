@@ -6,6 +6,10 @@
 
 import Foundation
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 enum HTTPMethod: String {
     case delete
     case get
@@ -44,14 +48,16 @@ final class HTTPRequest {
         headers[name] = value
     }
 
+#if canImport(UIKit)
     func addMultipartJPEG(name: String, image: UIImage, quality: CGFloat, filename: String? = nil) {
-        guard let data = UIImageJPEGRepresentation(image, quality) else {
+        guard let data = image.jpegData(compressionQuality: quality) else {
             assertionFailure()
             return
         }
-        let part = MultipartFormEncoder.Part(name: name, type: "image/jpeg", encoding: "binary", data: data, filename: filename)
+        let part = MultipartFormEncoder.Part(name: name, content: .binary(data, type: "image/jpeg", filename: filename ?? "image.jpeg"))
         addPart(part)
     }
+#endif
 
     private func addPart(_ part: MultipartFormEncoder.Part) {
         // Convert this request to multipart
@@ -112,11 +118,11 @@ enum HTTPResponse {
 
     var bodyString: String {
         guard let data = self.data else {
-            log.warning("No data found on response: \(self)")
+            NSLog("[WARN] No data found on response: \(self)")
             return ""
         }
         guard let string = String(data: data, encoding: .utf8) else {
-            log.warning("Data is not UTF8: \(data)")
+            NSLog("[WARN] Data is not UTF8: \(data)")
             return ""
         }
         return string
@@ -124,13 +130,13 @@ enum HTTPResponse {
 
     var dictionaryFromJSON: [String : Any] {
         guard let data = self.data else {
-            log.warning("No data found on response: \(self)")
+            NSLog("[WARN] No data found on response: \(self)")
             return [:]
         }
         do {
             guard let dictionary = try JSONSerialization.jsonObject(with: data, options: []) as? [String : Any] else {
                 if let parsed = try? JSONSerialization.jsonObject(with: data, options: []) {
-                    log.error("Failed to parse JSON as dictionary: \(parsed)")
+                    NSLog("[ERROR] Failed to parse JSON as dictionary: \(parsed)")
                 }
                 return [:]
             }
@@ -138,7 +144,7 @@ enum HTTPResponse {
         }
         catch {
             let json = String(data: data, encoding: .utf8) ?? "<invalid data>"
-            log.error("Failed to parse JSON \(json): \(error)")
+            NSLog("[ERROR] Failed to parse JSON \(json): \(error)")
             return [:]
         }
     }

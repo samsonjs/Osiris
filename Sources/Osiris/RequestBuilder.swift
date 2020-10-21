@@ -19,11 +19,10 @@ final class RequestBuilder {
             result.addValue(value, forHTTPHeaderField: name)
         }
         if let params = request.parameters {
-            let data: Data
             switch request.contentType {
             case .json:
                 result.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                data = try JSONSerialization.data(withJSONObject: params, options: [])
+                result.httpBody = try JSONSerialization.data(withJSONObject: params, options: [])
 
             case .none:
                 // Fall back to form encoding for maximum compatibility.
@@ -41,10 +40,10 @@ final class RequestBuilder {
                 for part in request.parts {
                     encoder.addPart(part)
                 }
-                let encoded = try encoder.encodeToMemory()
-                result.addValue(encoded.contentType, forHTTPHeaderField: "Content-Type")
-                result.addValue("\(encoded.contentLength)", forHTTPHeaderField: "Content-Length")
-                result.httpBody = encoded.body
+                let body = encoder.encode()
+                result.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
+                result.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
+                result.httpBody = body.data
             }
         }
         return result
