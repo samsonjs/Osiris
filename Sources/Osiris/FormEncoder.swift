@@ -4,6 +4,15 @@
 
 import Foundation
 
+extension NSNumber {
+    /// [From Argo](https://github.com/thoughtbot/Argo/blob/3da833411e2633bc01ce89542ac16803a163e0f0/Argo/Extensions/NSNumber.swift)
+    ///
+    /// - Returns: `true` if this instance represent a `CFBoolean` under the hood, as opposed to say a double or integer.
+    var isBool: Bool {
+        return CFBooleanGetTypeID() == CFGetTypeID(self)
+    }
+}
+
 final class FormEncoder {
     class func encode(_ parameters: [String: Any]) -> String {
         var components: [(String, String)] = []

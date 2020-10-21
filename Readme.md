@@ -13,41 +13,23 @@ Create an encoder and then add parts to it as needed:
 
 ```Swift
 let encoder = MultipartFormEncoder()
-try! encoder.addText(name: "email", text: "somebody@example.com")
-try! encoder.addText(name: "password", text: "secret")
-let avatarData = UIImageJPEGRepresentation(avatar, 1)!
-encoder.addBinary(name: "avatar.jpg", contentType: "image/jpeg", data: avatarData)
+encoder.addPart(.text(name: "email", text: "somebody@example.com"))
+encoder.addPart(.text(name: "password", text: "secret"))
+let avatarData = UIImage(from: somewhere).jpegData(compressionQuality: 1)
+encoder.addPart(.binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"))
 ```
 
-You can encode the entire form as `Data` in memory if it's not very big:
+The entire form is encoded as `Data` in memory so you may not want to use this for more than a few megabytes at a time:
 
 ```Swift
-let encoded = try encoder.encodeToMemory()
+let body = encoder.encode()
 var request = URLRequest(url: URL(string: "https://example.com/accounts")!)
 request.httpMethod = "POST"
-request.httpBody = encoded.body
-request.addValue(encoded.contentType, forHTTPHeaderField: "Content-Type")
-request.addValue("\(encoded.contentLength)", forHTTPHeaderField: "Content-Length")
+request.httpBody = body.data
+request.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
+request.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
 // ... whatever you normally do with requests
 ```
-
-For larger forms you can also stream the encoded form data directly to disk:
-
-```Swift
-let path = NSTemporaryDirectory().appending("/form.data")
-let encoded = try encoder.encodeToDisk(path: path)
-var request = URLRequest(url: URL(string: "https://example.com/accounts")!)
-request.httpMethod = "POST"
-request.addValue(encoded.contentType, forHTTPHeaderField: "Content-Type")
-request.addValue("\(encoded.contentLength)", forHTTPHeaderField: "Content-Length")
-let task = URLSession.shared.uploadTask(with: request, fromFile: encoded.bodyFileURL) { maybeData, maybeResponse, maybeError in
-
-}
-task.resume()
-
-```
-
-You can create and add your own parts using the `MultipartFormEncoder.Part` struct and `MultipartFormEncoder.addPart(_ part: Part)`.
 
 # HTTPRequest
 
@@ -131,7 +113,7 @@ I don't recommend you use `Service` as shown here, but maybe use it as a jumping
 
 Mostly created by Sami Samhuri for [1SE][]. `FormEncoder.swift` was lifted from [Alamofire][].
 
-[1SE]: http://1se.co
+[1SE]: https://1se.co
 
 # License
 
