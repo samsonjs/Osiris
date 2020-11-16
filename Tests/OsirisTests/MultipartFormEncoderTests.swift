@@ -1,6 +1,6 @@
 //
 //  MultipartFormEncoderTests.swift
-//  VidjoTests
+//  OsirisTests
 //
 //  Created by Sami Samhuri on 2020-10-20.
 //  Copyright © 2020 Guru Logic Inc. All rights reserved.
@@ -9,7 +9,7 @@
 @testable import Osiris
 import XCTest
 
-func AssertBodyEqual(_ expression1: @autoclosure () throws -> Data, _ expression2: @autoclosure () throws -> String, _ message: @autoclosure () -> String? = nil, file: StaticString = #filePath, line: UInt = #line) {
+func AssertStringDataEqual(_ expression1: @autoclosure () throws -> Data, _ expression2: @autoclosure () throws -> String, _ message: @autoclosure () -> String? = nil, file: StaticString = #filePath, line: UInt = #line) {
     let data1 = try! expression1()
     let string1 = String(bytes: data1, encoding: .utf8)!
     let string2 = try! expression2()
@@ -30,14 +30,14 @@ class MultipartFormEncoderTests: XCTestCase {
     }
 
     func testEncodeNothing() throws {
-        let body = subject.encode(parts: [])
+        let body = try subject.encodeData(parts: [])
         XCTAssertEqual(body.contentType, "multipart/form-data; boundary=\"SuperAwesomeBoundary\"")
-        AssertBodyEqual(body.data, "--SuperAwesomeBoundary--")
+        AssertStringDataEqual(body.data, "--SuperAwesomeBoundary--")
     }
 
     func testEncodeText() throws {
-        AssertBodyEqual(
-            subject.encode(parts: [.text(name: "name", value: "Tina")]).data,
+        AssertStringDataEqual(
+            try subject.encodeData(parts: [.text("Tina", name: "name")]).data,
             [
                 "--SuperAwesomeBoundary",
                 "Content-Disposition: form-data; name=\"name\"",
@@ -50,9 +50,9 @@ class MultipartFormEncoderTests: XCTestCase {
 
     func testEncodeData() throws {
         let data = Data("phony video data".utf8)
-        AssertBodyEqual(
-            subject.encode(parts: [
-                .binary(name: "video", data: data, type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
+        AssertStringDataEqual(
+            try subject.encodeData(parts: [
+                .data(data, name: "video", type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
             ]).data,
             [
                 "--SuperAwesomeBoundary",
@@ -69,12 +69,12 @@ class MultipartFormEncoderTests: XCTestCase {
     func testEncodeEverything() throws {
         let imageData = Data("phony image data".utf8)
         let videoData = Data("phony video data".utf8)
-        AssertBodyEqual(
-            subject.encode(parts: [
-                .text(name: "name", value: "Queso"),
-                .binary(name: "image", data: imageData, type: "image/jpeg", filename: "feltcute.jpg"),
-                .text(name: "spot", value: "top of the bbq"),
-                .binary(name: "video", data: videoData, type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
+        AssertStringDataEqual(
+            try subject.encodeData(parts: [
+                .text("Queso", name: "name"),
+                .data(imageData, name: "image", type: "image/jpeg", filename: "feltcute.jpg"),
+                .text("top of the bbq", name: "spot"),
+                .data(videoData, name: "video", type: "video/mp4", filename: "LiesSex&VideoTape.mp4"),
             ]).data,
             [
                 "--SuperAwesomeBoundary",
@@ -105,11 +105,4 @@ class MultipartFormEncoderTests: XCTestCase {
             ].joined(separator: "\r\n")
         )
     }
-
-    static var allTests = [
-        ("testEncodeNothing", testEncodeNothing),
-        ("testEncodeText", testEncodeText),
-        ("testEncodeData", testEncodeData),
-        ("testEncodeEverything", testEncodeEverything),
-    ]
 }

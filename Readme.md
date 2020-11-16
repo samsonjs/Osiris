@@ -14,20 +14,20 @@ Create an encoder and then add parts to it as needed:
 ```Swift
 let avatarData = UIImage(from: somewhere).jpegData(compressionQuality: 1)
 let encoder = MultipartFormEncoder()
-let body = encoder.encode(parts: [
+let body = try encoder.encodeData(parts: [
     .text(name: "email", text: "somebody@example.com"),
     .text(name: "password", text: "secret"),
     .binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"),
 ])
 ```
 
-The entire form is encoded as `Data` in memory so you may not want to use this for more than a few megabytes at a time:
+The form can be encoded as `Data` in memory, or to a file. There's a hard limit of 50 MB on encoding to memory but in practice you probably never want to go that high purely in memory. If you're adding any kind of image or video file then it's probably better to stream to a file.
 
 ```Swift
-let body = encoder.encode(parts: [/* ... */])
+let body = try encoder.encodeFile(parts: [/* ... */])
 var request = URLRequest(url: URL(string: "https://example.com/accounts")!)
 request.httpMethod = "POST"
-request.httpBody = body.data
+request.httpBodyStream = InputStream(url: body.url)
 request.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
 request.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
 // ... whatever you normally do with requests
