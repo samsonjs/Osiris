@@ -18,11 +18,10 @@ func AssertStringDataEqual(_ expression1: @autoclosure () throws -> Data, _ expr
 }
 
 class MultipartFormEncoderTests: XCTestCase {
-    var boundary = "SuperAwesomeBoundary"
     var subject: MultipartFormEncoder!
 
     override func setUpWithError() throws {
-        subject = MultipartFormEncoder(boundary: boundary)
+        subject = MultipartFormEncoder(boundary: "SuperAwesomeBoundary")
     }
 
     override func tearDownWithError() throws {
