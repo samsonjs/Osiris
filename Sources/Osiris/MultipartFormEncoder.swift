@@ -79,7 +79,7 @@ final class MultipartFormEncoder {
     let boundary: String
 
     init(boundary: String? = nil) {
-        self.boundary = boundary ?? "VidjoIsCool-\(UUID().uuidString)"
+        self.boundary = boundary ?? "Osiris-\(UUID().uuidString)"
     }
 
     func encodeData(parts: [Part]) throws -> BodyData {
