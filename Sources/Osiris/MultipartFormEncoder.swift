@@ -39,8 +39,8 @@ extension MultipartFormEncoder {
         let contentLength: Int64
     }
 
-    struct Part {
-        enum Content {
+    struct Part: Equatable {
+        enum Content: Equatable {
             case text(String)
             case binaryData(Data, type: String, filename: String)
             case binaryFile(URL, size: Int64, type: String, filename: String)
@@ -72,7 +72,6 @@ final class MultipartFormEncoder {
         case invalidFile(URL)
         case invalidOutputFile(URL)
         case streamError
-        case emptyData
         case tooMuchDataForMemory
     }
 
@@ -184,13 +183,12 @@ final class MultipartFormEncoder {
     }
 
     private func encode(data: Data, to stream: OutputStream) throws {
-        guard !data.isEmpty else {
-            throw Error.emptyData
-        }
+        guard !data.isEmpty else { return }
+
         try data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
             let uint8Bytes = bytes.baseAddress!.bindMemory(to: UInt8.self, capacity: bytes.count)
             let written = stream.write(uint8Bytes, maxLength: bytes.count)
-            if written < 0 {
+            if written != bytes.count {
                 throw Error.streamError
             }
         }
@@ -216,11 +214,11 @@ final class MultipartFormEncoder {
         while inStream.hasBytesAvailable {
             let bytesRead = inStream.read(buffer, maxLength: bufferSize)
             guard bytesRead > 0 else {
-                throw Error.streamError
+                break
             }
 
             let bytesWritten = stream.write(buffer, maxLength: bytesRead)
-            if bytesWritten < 0 {
+            if bytesWritten != bytesRead {
                 throw Error.streamError
             }
         }
