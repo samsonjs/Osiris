@@ -75,7 +75,8 @@ final class Service {
     // For example... (you probably want a more specific result type unpacked from the response though)
     func signUp(email: String, password: String, avatar: UIImage) -> Promise<HTTPResponse> {
         let parameters = ["email" : email, "password" : password]
-        let request = postRequest(path: "/accounts", parameters: parameters)
+        let url = environment.baseURL.appendingPathComponent("accounts")
+        var request = HTTPRequest.post(url, contentType: .formEncoded, parameters: parameters)
         request.addMultipartJPEG(name: "avatar", image: avatar, quality: 1)
         return performRequest(request)
     }

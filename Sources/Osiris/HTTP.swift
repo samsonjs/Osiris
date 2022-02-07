@@ -29,13 +29,17 @@ enum HTTPContentType {
     case multipart
 }
 
-final class HTTPRequest {
-    let method: HTTPMethod
-    let url: URL
-    private(set) var contentType: HTTPContentType
-    let parameters: [String : Any]?
-    private(set) var headers: [String : String] = [:]
-    private(set) var parts: [MultipartFormEncoder.Part] = []
+struct HTTPRequest {
+    var method: HTTPMethod
+    var url: URL
+    var contentType: HTTPContentType
+    var parameters: [String : Any]?
+    var headers: [String : String] = [:]
+    var parts: [MultipartFormEncoder.Part] = [] {
+        didSet {
+            if !parts.isEmpty { contentType = .multipart }
+        }
+    }
 
     init(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String : Any]? = nil) {
         self.method = method
@@ -44,28 +48,34 @@ final class HTTPRequest {
         self.parameters = parameters
     }
 
-    func addHeader(name: String, value: String) {
-        headers[name] = value
+    static func get(_ url: URL, contentType: HTTPContentType = .none) -> HTTPRequest {
+        HTTPRequest(method: .get, url: url, contentType: contentType)
+    }
+
+    static func put(_ url: URL, contentType: HTTPContentType = .none, parameters: [String: Any]? = nil) -> HTTPRequest {
+        HTTPRequest(method: .put, url: url, contentType: contentType, parameters: parameters)
+    }
+
+    static func post(_ url: URL, contentType: HTTPContentType = .none, parameters: [String: Any]? = nil) -> HTTPRequest {
+        HTTPRequest(method: .post, url: url, contentType: contentType, parameters: parameters)
+    }
+
+    static func delete(_ url: URL, contentType: HTTPContentType = .none) -> HTTPRequest {
+        HTTPRequest(method: .delete, url: url, contentType: contentType)
     }
 
 #if canImport(UIKit)
-    func addMultipartJPEG(name: String, image: UIImage, quality: CGFloat, filename: String? = nil) {
+    mutating func addMultipartJPEG(name: String, image: UIImage, quality: CGFloat, filename: String? = nil) {
         guard let data = image.jpegData(compressionQuality: quality) else {
             assertionFailure()
             return
         }
-        let part = MultipartFormEncoder.Part(name: name, content: .binary(data, type: "image/jpeg", filename: filename ?? "image.jpeg"))
-        addPart(part)
+        parts.append(MultipartFormEncoder.Part(
+            name: name,
+            content: .binary(data, type: "image/jpeg", filename: filename ?? "image.jpeg")
+        ))
     }
 #endif
-
-    private func addPart(_ part: MultipartFormEncoder.Part) {
-        // Convert this request to multipart
-        if parts.isEmpty {
-            contentType = .multipart
-        }
-        parts.append(part)
-    }
 }
 
 enum HTTPRequestError: Error {

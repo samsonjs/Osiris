@@ -13,6 +13,7 @@ enum RequestBuilderError: Error {
 final class RequestBuilder {
     class func build(request: HTTPRequest) throws -> URLRequest {
         assert(!(request.method == .get && request.parameters != nil), "encoding GET params is not yet implemented")
+        assert(!(request.method == .delete && request.parameters != nil), "encoding DELETE params is not yet implemented")
         var result = URLRequest(url: request.url)
         result.httpMethod = request.method.string
         for (name, value) in request.headers {
