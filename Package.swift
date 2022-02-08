@@ -23,6 +23,10 @@ let package = Package(
             dependencies: []),
         .testTarget(
             name: "OsirisTests",
-            dependencies: ["Osiris"]),
+            dependencies: ["Osiris"],
+            resources: [
+                .copy("Resources/lorem.txt"),
+                .copy("Resources/notbad.jpg"),
+            ]),
     ]
 )

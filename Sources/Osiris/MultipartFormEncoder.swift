@@ -24,7 +24,7 @@
 import Foundation
 
 extension MultipartFormEncoder {
-    struct Body {
+    struct BodyData {
         let contentType: String
         let data: Data
 
@@ -33,62 +33,194 @@ extension MultipartFormEncoder {
         }
     }
 
-    struct Part {
-        enum Content {
+    struct BodyFile {
+        let contentType: String
+        let url: URL
+        let contentLength: Int64
+    }
+
+    struct Part: Equatable {
+        enum Content: Equatable {
             case text(String)
-            case binary(Data, type: String, filename: String)
+            case binaryData(Data, type: String, filename: String)
+            case binaryFile(URL, size: Int64, type: String, filename: String)
         }
 
         let name: String
         let content: Content
 
-        static func text(name: String, value: String) -> Part {
+        static func text(_ value: String, name: String) -> Part {
             Part(name: name, content: .text(value))
         }
 
-        static func binary(name: String, data: Data, type: String, filename: String) -> Part {
-            Part(name: name, content: .binary(data, type: type, filename: filename))
+        static func data(_ data: Data, name: String, type: String, filename: String) -> Part {
+            Part(name: name, content: .binaryData(data, type: type, filename: filename))
+        }
+
+        static func file(_ url: URL, name: String, type: String, filename: String? = nil) throws -> Part {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            guard let size = attributes[.size] as? Int64 else {
+                throw Error.invalidFile(url)
+            }
+            return Part(name: name, content: .binaryFile(url, size: size, type: type, filename: filename ?? url.lastPathComponent))
         }
     }
 }
 
 final class MultipartFormEncoder {
+    enum Error: Swift.Error {
+        case invalidFile(URL)
+        case invalidOutputFile(URL)
+        case streamError
+        case tooMuchDataForMemory
+    }
+
     let boundary: String
 
     init(boundary: String? = nil) {
-        self.boundary = boundary ?? "LifeIsMadeOfSeconds-\(UUID().uuidString)"
+        self.boundary = boundary ?? "Osiris-\(UUID().uuidString)"
     }
 
-    func encode(parts: [Part]) -> Body {
-        var bodyData = Data()
-        for part in parts {
-            // Header
-            bodyData.append(Data("--\(boundary)\r\n".utf8))
-            switch part.content {
-            case .text:
-                bodyData.append(Data("Content-Disposition: form-data; name=\"\(part.name)\"\r\n".utf8))
-
-            case let .binary(data, type, filename):
-                bodyData.append(Data("Content-Disposition: form-data; name=\"\(part.name)\"; filename=\"\(filename)\"\r\n".utf8))
-                bodyData.append(Data("Content-Type: \(type)\r\n".utf8))
-                bodyData.append(Data("Content-Length: \(data.count)\r\n".utf8))
-            }
-            bodyData.append(Data("\r\n".utf8))
-
-            // Body
+    func encodeData(parts: [Part]) throws -> BodyData {
+        let totalSize: Int64 = parts.reduce(0, { size, part in
             switch part.content {
             case let .text(string):
-                bodyData.append(Data(string.utf8))
+                return size + Int64(string.lengthOfBytes(using: .utf8))
 
-            case let .binary(data, _, _):
-                bodyData.append(data)
+            case let .binaryData(data, _, _):
+                return size + Int64(data.count)
+
+            case let .binaryFile(_, fileSize, _, _):
+                return size + fileSize
             }
-            bodyData.append(Data("\r\n".utf8))
+        })
+        guard totalSize < 50_000_000 else {
+            throw Error.tooMuchDataForMemory
+        }
+
+        let stream = OutputStream(toMemory: ())
+        stream.open()
+
+        for part in parts {
+            try encodePart(part, to: stream)
         }
 
         // Footer
-        bodyData.append(Data("--\(boundary)--".utf8))
+        try encode(string: "--\(boundary)--", to: stream)
 
-        return Body(contentType: "multipart/form-data; boundary=\"\(boundary)\"", data: bodyData)
+        stream.close()
+
+        guard let bodyData = stream.property(forKey: .dataWrittenToMemoryStreamKey) as? Data else {
+            throw Error.streamError
+        }
+        return BodyData(contentType: "multipart/form-data; boundary=\"\(boundary)\"", data: bodyData)
+    }
+
+    func encodeFile(parts: [Part]) throws -> BodyFile {
+        let fm = FileManager.default
+        let outputURL = tempFileURL()
+        guard let stream = OutputStream(url: outputURL, append: false) else {
+            _ = try? fm.removeItem(at: outputURL)
+            throw Error.invalidFile(outputURL)
+        }
+        stream.open()
+
+        for part in parts {
+            try encodePart(part, to: stream)
+        }
+
+        // Footer
+        try encode(string: "--\(boundary)--", to: stream)
+
+        stream.close()
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: outputURL.path)
+        guard let size = attributes[.size] as? Int64 else {
+            throw Error.invalidOutputFile(outputURL)
+        }
+        let contentType = "multipart/form-data; boundary=\(boundary)"
+        return BodyFile(contentType: contentType, url: outputURL, contentLength: size)
+    }
+
+    private func tempFileURL() -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let filename = "multipart-\(timestamp)-\(Int.random(in: 0 ... .max))"
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(filename)
+        return url
+    }
+
+    private func encodePart(_ part: Part, to stream: OutputStream) throws {
+        // Header
+        try encode(string: "--\(boundary)\r\n", to: stream)
+        switch part.content {
+        case .text:
+            try encode(string: "Content-Disposition: form-data; name=\"\(part.name)\"\r\n", to: stream)
+
+        case let .binaryData(data, type, filename):
+            try encode(string: "Content-Disposition: form-data; name=\"\(part.name)\"; filename=\"\(filename)\"\r\n", to: stream)
+            try encode(string: "Content-Type: \(type)\r\n", to: stream)
+            try encode(string: "Content-Length: \(data.count)\r\n", to: stream)
+
+        case let .binaryFile(_, size, type, filename):
+            try encode(string: "Content-Disposition: form-data; name=\"\(part.name)\"; filename=\"\(filename)\"\r\n", to: stream)
+            try encode(string: "Content-Type: \(type)\r\n", to: stream)
+            try encode(string: "Content-Length: \(size)\r\n", to: stream)
+        }
+        try encode(string: "\r\n", to: stream)
+
+        // Body
+        switch part.content {
+        case let .text(string):
+            try encode(string: string, to: stream)
+
+        case let .binaryData(data, _, _):
+            try encode(data: data, to: stream)
+
+        case let .binaryFile(url, _, _, _):
+            try encode(url: url, to: stream)
+        }
+        try encode(string: "\r\n", to: stream)
+    }
+
+    private func encode(data: Data, to stream: OutputStream) throws {
+        guard !data.isEmpty else { return }
+
+        try data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
+            let uint8Bytes = bytes.baseAddress!.bindMemory(to: UInt8.self, capacity: bytes.count)
+            let written = stream.write(uint8Bytes, maxLength: bytes.count)
+            if written != bytes.count {
+                throw Error.streamError
+            }
+        }
+    }
+
+    private func encode(string: String, to stream: OutputStream) throws {
+        try encode(data: Data(string.utf8), to: stream)
+    }
+
+    private func encode(url: URL, to stream: OutputStream) throws {
+        guard let inStream = InputStream(url: url) else {
+            throw Error.streamError
+        }
+        let bufferSize = 128 * 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        inStream.open()
+
+        defer {
+            buffer.deallocate()
+            inStream.close()
+        }
+
+        while inStream.hasBytesAvailable {
+            let bytesRead = inStream.read(buffer, maxLength: bufferSize)
+            guard bytesRead > 0 else {
+                break
+            }
+
+            let bytesWritten = stream.write(buffer, maxLength: bytesRead)
+            if bytesWritten != bytesRead {
+                throw Error.streamError
+            }
+        }
     }
 }
