@@ -3,7 +3,7 @@
 //  OsirisTests
 //
 //  Created by Sami Samhuri on 2020-10-20.
-//  Copyright © 2020 Guru Logic Inc. All rights reserved.
+//  Copyright © 2020 1 Second Everyday. All rights reserved.
 //
 
 @testable import Osiris
