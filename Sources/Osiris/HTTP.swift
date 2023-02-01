@@ -70,10 +70,9 @@ struct HTTPRequest {
             assertionFailure()
             return
         }
-        parts.append(MultipartFormEncoder.Part(
-            name: name,
-            content: .binaryData(data, type: "image/jpeg", filename: filename ?? "image.jpeg")
-        ))
+        parts.append(
+            .data(data, name: name, type: "image/jpeg", filename: filename ?? "image.jpeg")
+        )
     }
 #endif
 }

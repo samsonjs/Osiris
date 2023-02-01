@@ -15,9 +15,9 @@ Create an encoder and then add parts to it as needed:
 let avatarData = UIImage(from: somewhere).jpegData(compressionQuality: 1)
 let encoder = MultipartFormEncoder()
 let body = try encoder.encodeData(parts: [
-    .text(name: "email", text: "somebody@example.com"),
-    .text(name: "password", text: "secret"),
-    .binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"),
+    .text("somebody@example.com", name: "email"),
+    .text("secret", name: "password"),
+    .data(Data(), name: "avatar", type: "image/jpeg", filename: "avatar.jpg"),
 ])
 ```
 
