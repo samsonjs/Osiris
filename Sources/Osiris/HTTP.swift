@@ -72,7 +72,7 @@ struct HTTPRequest {
         }
         parts.append(MultipartFormEncoder.Part(
             name: name,
-            content: .binary(data, type: "image/jpeg", filename: filename ?? "image.jpeg")
+            content: .binaryData(data, type: "image/jpeg", filename: filename ?? "image.jpeg")
         ))
     }
 #endif
