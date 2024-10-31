@@ -1,5 +1,9 @@
 # Osiris
 
+[![0 dependencies!](https://0dependencies.dev/0dependencies.svg)](https://0dependencies.dev)
+
+# Overview
+
 A multipart form encoder for Swift, as well as some other utilities that make
 working with HTTP a bit simpler and more flexible.
 
