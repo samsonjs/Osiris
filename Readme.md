@@ -121,7 +121,7 @@ let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error 
     let httpResponse = HTTPResponse(response: response, data: data, error: error)
     
     switch httpResponse {
-    case .success(_, _):
+    case .success:
         // Decode the response
         let updatedPerson = try httpResponse.decode(Person.self)
         print("Updated person: \(updatedPerson)")
@@ -130,7 +130,7 @@ let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error 
         if let person = httpResponse.tryDecode(Person.self) {
             print("Decoded person: \(person)")
         }
-    case .failure(let error, _, _):
+    case let .failure(error, _, _):
         print("Request failed: \(error)")
     }
 }
@@ -219,7 +219,7 @@ let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error 
     switch httpResponse {
     case .success(let httpURLResponse, let data):
         print("Upload successful: \(httpURLResponse.statusCode)")
-    case .failure(let error, _, _):
+    case let .failure(error, _, _):
         print("Upload failed: \(error)")
     }
 }
