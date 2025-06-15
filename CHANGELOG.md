@@ -1,8 +1,18 @@
 # Changelog
 
-## [2.0.1] - Unreleased
+## [2.1.0] - Unreleased
 
-[2.0.1]: https://github.com/samsonjs/Osiris/compare/2.0.0...main
+### Added
+- **Codable support for JSON** - First-class support for encoding and decoding Codable types
+- **New convenience methods** `HTTPRequest.postJSON(_:body:)` and `HTTPRequest.putJSON(_:body:)` for Codable requests
+- **Response decoding methods** `HTTPResponse.decode(_:using:)` and `HTTPResponse.tryDecode(_:using:)` with JSONDecoder support
+- **Codable body property** on HTTPRequest that takes precedence over parameters dictionary
+
+### Enhanced
+- **RequestBuilder** now supports JSONEncoder for Codable bodies alongside existing JSONSerialization
+- **Comprehensive test coverage** for all Codable functionality with 14 new tests
+
+[2.1.0]: https://github.com/samsonjs/Osiris/compare/2.0.0...main
 
 ## [2.0.0] - 2025-06-15
 

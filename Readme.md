@@ -99,6 +99,45 @@ request.addHeader(name: "x-custom", value: "42")
 request.addMultipartJPEG(name: "avatar", image: UIImage(), quality: 1, filename: "avatar.jpg")
 ```
 
+### Codable Support
+
+For modern Swift applications, Osiris provides first-class support for `Codable` types with JSON encoding and decoding:
+
+```swift
+// Define your models
+struct Person: Codable, Sendable {
+    let name: String
+    let email: String
+    let age: Int
+}
+
+// POST request with Codable body
+let person = Person(name: "Jane Doe", email: "jane@example.net", age: 30)
+let request = HTTPRequest.postJSON(url, body: person)
+
+// Build and send the request
+let urlRequest = try RequestBuilder.build(request: request)
+let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+    let httpResponse = HTTPResponse(response: response, data: data, error: error)
+    
+    switch httpResponse {
+    case .success(_, _):
+        // Decode the response
+        let updatedPerson = try httpResponse.decode(Person.self)
+        print("Updated person: \(updatedPerson)")
+        
+        // Or use the optional variant
+        if let person = httpResponse.tryDecode(Person.self) {
+            print("Decoded person: \(person)")
+        }
+    case .failure(let error, _, _):
+        print("Request failed: \(error)")
+    }
+}
+```
+
+The Codable body takes precedence over the parameters dictionary, so you can safely use both without conflicts.
+
 You can build a `URLRequest` from an `HTTPRequest` instance using `RequestBuilder`:
 
 ```swift
@@ -135,6 +174,8 @@ The response provides convenient properties:
 - `headers`: a dictionary of headers
 - `bodyString`: the response body as a `String`
 - `dictionaryFromJSON`: the decoded body for JSON responses
+- `decode(_:using:)`: decode the response body as a Codable type (throws on failure)
+- `tryDecode(_:using:)`: decode the response body as a Codable type (returns nil on failure)
 - `underlyingResponse`: the optional `HTTPURLResponse` for direct access
 
 ### FormEncoder
