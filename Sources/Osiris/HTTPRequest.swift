@@ -51,19 +51,19 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
 
     /// The HTTP method for this request.
     public var method: HTTPMethod
-    
+
     /// The target URL for this request.
     public var url: URL
-    
+
     /// The content type for the request body.
     public var contentType: HTTPContentType
-    
+
     /// Parameters to be encoded according to the content type.
     public var parameters: [String: any Sendable]?
 
     /// Additional HTTP headers for the request.
     public var headers: [String: String] = [:]
-    
+
     /// Multipart form parts (automatically sets contentType to .multipart when non-empty).
     public var parts: [MultipartFormEncoder.Part] = [] {
         didSet {
@@ -123,7 +123,7 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     }
 
 #if canImport(UIKit)
-    
+
     /// Adds a JPEG image to the multipart form (iOS/tvOS only).
     /// - Parameters:
     ///   - name: The form field name
@@ -148,7 +148,7 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     public mutating func addHeader(name: String, value: String) {
         headers[name] = value
     }
-    
+
     public var description: String {
         "<HTTPRequest \(method) \(url)>"
     }

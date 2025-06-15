@@ -8,19 +8,19 @@ import Foundation
 
 /// Content types that can be automatically handled by HTTPRequest.
 public enum HTTPContentType: Sendable, CustomStringConvertible {
-    
+
     /// application/x-www-form-urlencoded
     case formEncoded
-    
+
     /// No specific content type
     case none
-    
+
     /// application/json
     case json
-    
+
     /// multipart/form-data (set automatically when parts are added)
     case multipart
-    
+
     public var description: String {
         switch self {
         case .formEncoded:

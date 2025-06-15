@@ -20,7 +20,7 @@ private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPResponse")
 /// ```swift
 /// let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
 ///     let httpResponse = HTTPResponse(response: response, data: data, error: error)
-///     
+///
 ///     switch httpResponse {
 ///     case .success(let httpURLResponse, let data):
 ///         print("Success: \(httpURLResponse.statusCode)")
@@ -32,10 +32,10 @@ private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPResponse")
 /// }
 /// ```
 public enum HTTPResponse: CustomStringConvertible {
-    
+
     /// A successful response (2xx status code) with the HTTP response and optional body data.
     case success(HTTPURLResponse, Data?)
-    
+
     /// A failed response with the error, optional HTTP response, and optional body data.
     case failure(Error, HTTPURLResponse?, Data?)
 
@@ -125,7 +125,7 @@ public enum HTTPResponse: CustomStringConvertible {
             return [:]
         }
     }
-    
+
     public var description: String {
         switch self {
         case let .success(response, data):

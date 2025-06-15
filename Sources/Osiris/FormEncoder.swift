@@ -5,7 +5,7 @@
 import Foundation
 
 extension NSNumber {
-    
+
     /// [From Argo](https://github.com/thoughtbot/Argo/blob/3da833411e2633bc01ce89542ac16803a163e0f0/Argo/Extensions/NSNumber.swift)
     ///
     /// - Returns: `true` if this instance represent a `CFBoolean` under the hood, as opposed to say a double or integer.
@@ -30,12 +30,12 @@ extension NSNumber {
 ///     "active": true,
 ///     "preferences": ["color": "blue", "theme": "dark"]
 /// ]
-/// 
+///
 /// let encoded = FormEncoder.encode(parameters)
 /// // Result: "active=1&age=30&email=jane%40example.net&name=Jane%20Doe&preferences%5Bcolor%5D=blue&preferences%5Btheme%5D=dark"
 /// ```
 public final class FormEncoder: CustomStringConvertible {
-    
+
     /// Encodes a dictionary of parameters into a URL-encoded form string.
     ///
     /// The encoding follows these rules:
@@ -119,7 +119,7 @@ public final class FormEncoder: CustomStringConvertible {
         let escaped = string.addingPercentEncoding(withAllowedCharacters: allowedCharacterSet) ?? string
         return escaped
     }
-    
+
     public var description: String {
         "FormEncoder"
     }

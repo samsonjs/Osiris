@@ -8,13 +8,13 @@ import Foundation
 
 /// Specific errors for HTTP request processing.
 public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
-    
+
     /// An HTTP error occurred (non-2xx status code).
     case http
-    
+
     /// An unknown error occurred (typically when URLResponse isn't HTTPURLResponse).
     case unknown
-    
+
     public var errorDescription: String? {
         switch self {
         case .http:
@@ -23,7 +23,7 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             return "An unknown error occurred"
         }
     }
-    
+
     public var failureReason: String? {
         switch self {
         case .http:
@@ -32,7 +32,7 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             return "An unexpected error occurred during the request"
         }
     }
-    
+
     public var recoverySuggestion: String? {
         switch self {
         case .http:
@@ -41,7 +41,7 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             return "Check network connectivity and try again"
         }
     }
-    
+
     public var description: String {
         switch self {
         case .http:

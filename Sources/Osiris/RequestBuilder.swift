@@ -11,7 +11,7 @@ private let log = Logger(subsystem: "co.1se.Osiris", category: "RequestBuilder")
 
 /// Errors that can occur when building URLRequest from HTTPRequest.
 public enum RequestBuilderError: Error {
-    
+
     /// The form data could not be encoded properly.
     case invalidFormData(HTTPRequest)
 }
@@ -31,7 +31,7 @@ public enum RequestBuilderError: Error {
 ///     contentType: .json,
 ///     parameters: ["name": "Jane", "email": "jane@example.net"]
 /// )
-/// 
+///
 /// let urlRequest = try RequestBuilder.build(request: httpRequest)
 /// let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
 ///     let httpResponse = HTTPResponse(response: response, data: data, error: error)
@@ -39,7 +39,7 @@ public enum RequestBuilderError: Error {
 /// }
 /// ```
 public final class RequestBuilder {
-    
+
     /// Converts an HTTPRequest to a URLRequest ready for use with URLSession.
     ///
     /// This method handles encoding of parameters according to the request's method and content type:
@@ -60,7 +60,7 @@ public final class RequestBuilder {
     public class func build(request: HTTPRequest) throws -> URLRequest {
         var result = URLRequest(url: request.url)
         result.httpMethod = request.method.string
-        
+
         for (name, value) in request.headers {
             result.addValue(value, forHTTPHeaderField: name)
         }
@@ -83,7 +83,7 @@ public final class RequestBuilder {
 
         return result
     }
-    
+
     private class func encodeMultipartContent(to urlRequest: inout URLRequest, request: HTTPRequest) throws {
         let encoder = MultipartFormEncoder()
         let body = try encoder.encodeData(parts: request.parts)
@@ -91,28 +91,28 @@ public final class RequestBuilder {
         urlRequest.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
         urlRequest.httpBody = body.data
     }
-    
+
     private class func encodeParameters(to urlRequest: inout URLRequest, request: HTTPRequest, parameters: [String: any Sendable]) throws {
         switch request.contentType {
         case .json:
             try encodeJSONParameters(to: &urlRequest, parameters: parameters)
-            
+
         case .none:
             log.warning("Cannot serialize parameters without a content type, falling back to form encoding")
             fallthrough
         case .formEncoded:
             try encodeFormParameters(to: &urlRequest, request: request, parameters: parameters)
-            
+
         case .multipart:
             try encodeMultipartContent(to: &urlRequest, request: request)
         }
     }
-    
+
     private class func encodeJSONParameters(to urlRequest: inout URLRequest, parameters: [String: any Sendable]) throws {
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: parameters, options: [])
     }
-    
+
     private class func encodeFormParameters(to urlRequest: inout URLRequest, request: HTTPRequest, parameters: [String: any Sendable]) throws {
         urlRequest.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         guard let formData = FormEncoder.encode(parameters).data(using: .utf8) else {
@@ -120,23 +120,23 @@ public final class RequestBuilder {
         }
         urlRequest.httpBody = formData
     }
-    
+
     private class func encodeQueryParameters(to urlRequest: inout URLRequest, parameters: [String: any Sendable]) throws {
         guard let url = urlRequest.url else {
             return
         }
-        
+
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let newQueryItems = parameters.compactMap { (key, value) -> URLQueryItem? in
             URLQueryItem(name: key, value: String(describing: value))
         }
-        
+
         if let existingQueryItems = components?.queryItems {
             components?.queryItems = existingQueryItems + newQueryItems
-        } else {
+        } else if !newQueryItems.isEmpty {
             components?.queryItems = newQueryItems
         }
-        
+
         urlRequest.url = components?.url ?? url
     }
 }

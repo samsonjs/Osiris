@@ -18,7 +18,7 @@ public enum HTTPMethod: String, Sendable, CustomStringConvertible {
     var string: String {
         rawValue.uppercased()
     }
-    
+
     public var description: String {
         string
     }

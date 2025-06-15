@@ -24,13 +24,13 @@
 import Foundation
 
 extension MultipartFormEncoder {
-    
+
     /// Contains the encoded multipart form data for in-memory storage.
     public struct BodyData: CustomStringConvertible {
-        
+
         /// The content type header value including boundary.
         public let contentType: String
-        
+
         /// The encoded form data.
         public let data: Data
 
@@ -38,7 +38,7 @@ extension MultipartFormEncoder {
         public var contentLength: Int {
             data.count
         }
-        
+
         public var description: String {
             "<BodyData size=\(contentLength)>"
         }
@@ -46,16 +46,16 @@ extension MultipartFormEncoder {
 
     /// Contains the encoded multipart form data written to a file for streaming.
     public struct BodyFile: CustomStringConvertible {
-        
+
         /// The content type header value including boundary.
         public let contentType: String
-        
+
         /// The URL of the temporary file containing the encoded data.
         public let url: URL
-        
+
         /// The length of the encoded data in bytes.
         public let contentLength: Int64
-        
+
         public var description: String {
             "<BodyFile file=\(url.lastPathComponent) size=\(contentLength)>"
         }
@@ -66,16 +66,16 @@ extension MultipartFormEncoder {
 
         /// The content types supported in multipart forms.
         public enum Content: Equatable, Sendable, CustomStringConvertible {
-            
+
             /// Plain text content.
             case text(String)
-            
+
             /// Binary data with MIME type and filename.
             case binaryData(Data, type: String, filename: String)
-            
+
             /// Binary data from a file with size, MIME type and filename.
             case binaryFile(URL, size: Int64, type: String, filename: String)
-            
+
             public var description: String {
                 switch self {
                 case let .text(value):
@@ -91,7 +91,7 @@ extension MultipartFormEncoder {
 
         /// The form field name for this part.
         public let name: String
-        
+
         /// The content of this part.
         public let content: Content
 
@@ -130,7 +130,7 @@ extension MultipartFormEncoder {
             }
             return Part(name: name, content: .binaryFile(url, size: size, type: type, filename: filename ?? url.lastPathComponent))
         }
-        
+
         public var description: String {
             "<Part name=\(name) content=\(content)>"
         }
@@ -151,30 +151,30 @@ extension MultipartFormEncoder {
 ///     .text("jane@example.net", name: "email"),
 ///     .data(imageData, name: "avatar", type: "image/jpeg", filename: "avatar.jpg")
 /// ]
-/// 
+///
 /// // Encode to memory (< 50MB)
 /// let bodyData = try encoder.encodeData(parts: parts)
-/// 
+///
 /// // Or encode to file for streaming
 /// let bodyFile = try encoder.encodeFile(parts: parts)
 /// ```
 public final class MultipartFormEncoder: CustomStringConvertible {
-    
+
     /// Errors that can occur during multipart encoding.
     public enum Error: Swift.Error, CustomStringConvertible {
-        
+
         /// The specified file cannot be read or is invalid.
         case invalidFile(URL)
-        
+
         /// The output file cannot be created or written to.
         case invalidOutputFile(URL)
-        
+
         /// An error occurred while reading from or writing to a stream.
         case streamError
-        
+
         /// The total data size exceeds the 50MB limit for in-memory encoding.
         case tooMuchDataForMemory
-        
+
         public var description: String {
             switch self {
             case let .invalidFile(url):
@@ -359,7 +359,7 @@ public final class MultipartFormEncoder: CustomStringConvertible {
             }
         }
     }
-    
+
     public var description: String {
         "<MultipartFormEncoder boundary=\(boundary)>"
     }
