@@ -24,64 +24,190 @@
 import Foundation
 
 extension MultipartFormEncoder {
-    struct BodyData {
-        let contentType: String
-        let data: Data
+    
+    /// Contains the encoded multipart form data for in-memory storage.
+    public struct BodyData: CustomStringConvertible {
+        
+        /// The content type header value including boundary.
+        public let contentType: String
+        
+        /// The encoded form data.
+        public let data: Data
 
-        var contentLength: Int {
+        /// The length of the encoded data in bytes.
+        public var contentLength: Int {
             data.count
         }
+        
+        public var description: String {
+            "<BodyData size=\(contentLength)>"
+        }
     }
 
-    struct BodyFile {
-        let contentType: String
-        let url: URL
-        let contentLength: Int64
+    /// Contains the encoded multipart form data written to a file for streaming.
+    public struct BodyFile: CustomStringConvertible {
+        
+        /// The content type header value including boundary.
+        public let contentType: String
+        
+        /// The URL of the temporary file containing the encoded data.
+        public let url: URL
+        
+        /// The length of the encoded data in bytes.
+        public let contentLength: Int64
+        
+        public var description: String {
+            "<BodyFile file=\(url.lastPathComponent) size=\(contentLength)>"
+        }
     }
 
-    struct Part: Equatable {
-        enum Content: Equatable {
+    /// Represents a single part in a multipart form.
+    public struct Part: Equatable, Sendable, CustomStringConvertible {
+
+        /// The content types supported in multipart forms.
+        public enum Content: Equatable, Sendable, CustomStringConvertible {
+            
+            /// Plain text content.
             case text(String)
+            
+            /// Binary data with MIME type and filename.
             case binaryData(Data, type: String, filename: String)
+            
+            /// Binary data from a file with size, MIME type and filename.
             case binaryFile(URL, size: Int64, type: String, filename: String)
+            
+            public var description: String {
+                switch self {
+                case let .text(value):
+                    let preview = value.count > 50 ? "\(value.prefix(50))..." : value
+                    return "<Content.text value=\"\(preview)\">"
+                case let .binaryData(data, type, filename):
+                    return "<Content.binaryData size=\(data.count) type=\(type) filename=\(filename)>"
+                case let .binaryFile(url, size, type, filename):
+                    return "<Content.binaryFile file=\(url.lastPathComponent) size=\(size) type=\(type) filename=\(filename)>"
+                }
+            }
         }
 
-        let name: String
-        let content: Content
+        /// The form field name for this part.
+        public let name: String
+        
+        /// The content of this part.
+        public let content: Content
 
-        static func text(_ value: String, name: String) -> Part {
+        /// Creates a text part for the multipart form.
+        /// - Parameters:
+        ///   - value: The text value to include
+        ///   - name: The form field name
+        /// - Returns: A configured Part instance
+        public static func text(_ value: String, name: String) -> Part {
             Part(name: name, content: .text(value))
         }
 
-        static func data(_ data: Data, name: String, type: String, filename: String) -> Part {
+        /// Creates a binary data part for the multipart form.
+        /// - Parameters:
+        ///   - data: The binary data to include
+        ///   - name: The form field name
+        ///   - type: The MIME type of the data
+        ///   - filename: The filename to report to the server
+        /// - Returns: A configured Part instance
+        public static func data(_ data: Data, name: String, type: String, filename: String) -> Part {
             Part(name: name, content: .binaryData(data, type: type, filename: filename))
         }
 
-        static func file(_ url: URL, name: String, type: String, filename: String? = nil) throws -> Part {
+        /// Creates a file part for the multipart form by reading from disk.
+        /// - Parameters:
+        ///   - url: The file URL to read from
+        ///   - name: The form field name
+        ///   - type: The MIME type of the file
+        ///   - filename: The filename to report to the server (defaults to the file's name)
+        /// - Returns: A configured Part instance
+        /// - Throws: `Error.invalidFile` if the file cannot be read or sized
+        public static func file(_ url: URL, name: String, type: String, filename: String? = nil) throws -> Part {
             let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
             guard let size = attributes[.size] as? Int64 else {
                 throw Error.invalidFile(url)
             }
             return Part(name: name, content: .binaryFile(url, size: size, type: type, filename: filename ?? url.lastPathComponent))
         }
+        
+        public var description: String {
+            "<Part name=\(name) content=\(content)>"
+        }
     }
 }
 
-final class MultipartFormEncoder {
-    enum Error: Swift.Error {
+/// A multipart/form-data encoder that can encode forms either to memory or to files for streaming.
+///
+/// This encoder supports text fields, binary data, and file uploads in a single multipart form.
+/// It can encode forms either to memory (with a 50MB limit) or directly to temporary files for
+/// streaming large amounts of data.
+///
+/// ## Usage
+///
+/// ```swift
+/// let encoder = MultipartFormEncoder()
+/// let parts: [MultipartFormEncoder.Part] = [
+///     .text("jane@example.net", name: "email"),
+///     .data(imageData, name: "avatar", type: "image/jpeg", filename: "avatar.jpg")
+/// ]
+/// 
+/// // Encode to memory (< 50MB)
+/// let bodyData = try encoder.encodeData(parts: parts)
+/// 
+/// // Or encode to file for streaming
+/// let bodyFile = try encoder.encodeFile(parts: parts)
+/// ```
+public final class MultipartFormEncoder: CustomStringConvertible {
+    
+    /// Errors that can occur during multipart encoding.
+    public enum Error: Swift.Error, CustomStringConvertible {
+        
+        /// The specified file cannot be read or is invalid.
         case invalidFile(URL)
+        
+        /// The output file cannot be created or written to.
         case invalidOutputFile(URL)
+        
+        /// An error occurred while reading from or writing to a stream.
         case streamError
+        
+        /// The total data size exceeds the 50MB limit for in-memory encoding.
         case tooMuchDataForMemory
+        
+        public var description: String {
+            switch self {
+            case let .invalidFile(url):
+                return "<MultipartFormEncoder.Error.invalidFile file=\(url.lastPathComponent)>"
+            case let .invalidOutputFile(url):
+                return "<MultipartFormEncoder.Error.invalidOutputFile file=\(url.lastPathComponent)>"
+            case .streamError:
+                return "MultipartFormEncoder.Error.streamError"
+            case .tooMuchDataForMemory:
+                return "MultipartFormEncoder.Error.tooMuchDataForMemory"
+            }
+        }
     }
 
-    let boundary: String
+    /// The boundary string used to separate parts in the multipart form.
+    public let boundary: String
 
-    init(boundary: String? = nil) {
+    /// Creates a new multipart form encoder.
+    /// - Parameter boundary: Optional custom boundary string. If nil, a unique boundary is generated.
+    public init(boundary: String? = nil) {
         self.boundary = boundary ?? "Osiris-\(UUID().uuidString)"
     }
 
-    func encodeData(parts: [Part]) throws -> BodyData {
+    /// Encodes the multipart form to memory as Data.
+    ///
+    /// This method has a hard limit of 50MB to prevent excessive memory usage.
+    /// For larger forms, use `encodeFile(parts:)` instead.
+    ///
+    /// - Parameter parts: The parts to include in the multipart form
+    /// - Returns: A BodyData containing the encoded form and content type
+    /// - Throws: `Error.tooMuchDataForMemory` if the total size exceeds 50MB,
+    ///           or `Error.streamError` if encoding fails
+    public func encodeData(parts: [Part]) throws -> BodyData {
         let totalSize: Int64 = parts.reduce(0, { size, part in
             switch part.content {
             case let .text(string):
@@ -116,7 +242,17 @@ final class MultipartFormEncoder {
         return BodyData(contentType: "multipart/form-data; boundary=\"\(boundary)\"", data: bodyData)
     }
 
-    func encodeFile(parts: [Part]) throws -> BodyFile {
+    /// Encodes the multipart form to a temporary file for streaming.
+    ///
+    /// This method is recommended for large forms or when memory usage is a concern.
+    /// The returned file should be streamed using an InputStream and then deleted when no longer needed.
+    ///
+    /// - Parameter parts: The parts to include in the multipart form
+    /// - Returns: A BodyFile containing the file URL, content type, and size
+    /// - Throws: `Error.invalidFile` if the output file cannot be created,
+    ///           `Error.invalidOutputFile` if the file size cannot be determined,
+    ///           or `Error.streamError` if encoding fails
+    public func encodeFile(parts: [Part]) throws -> BodyFile {
         let fm = FileManager.default
         let outputURL = tempFileURL()
         guard let stream = OutputStream(url: outputURL, append: false) else {
@@ -222,5 +358,9 @@ final class MultipartFormEncoder {
                 throw Error.streamError
             }
         }
+    }
+    
+    public var description: String {
+        "<MultipartFormEncoder boundary=\(boundary)>"
     }
 }

@@ -1,130 +1,200 @@
 # Osiris
 
-A multipart form encoder for Swift, as well as some other utilities that make
-working with HTTP a bit simpler and more flexible.
+[![0 dependencies!](https://0dependencies.dev/0dependencies.svg)](https://0dependencies.dev)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsamsonjs%2FOsiris%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/samsonjs/Osiris)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsamsonjs%2FOsiris%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/samsonjs/Osiris)
 
-# Installation
+## Overview
 
-Copy the files you want to use into your project, and then customize them to suit your needs.
+Osiris is a Swift library that provides a multipart form encoder and HTTP utilities designed to make working with HTTP requests simpler and more flexible. The library focuses on practical utility over complexity, offering tools that handle common HTTP tasks like multipart form encoding, request building, and response handling.
 
-# Multipart Form Encoding
+The main components include a robust `MultipartFormEncoder` that can encode forms either to memory or directly to files for streaming, and clean abstractions for HTTP requests and responses. All types conform to `CustomStringConvertible` with idiomatic descriptions, making debugging with OSLog significantly easier.
+
+## Installation
+
+You can install Osiris using Swift Package Manager (SPM) or copy the files directly into your project and customize them as needed.
+
+### Supported Platforms
+
+This package supports iOS 14.0+ and macOS 11.0+. The package is built with Swift 6.0+ but doesn't require projects importing Osiris to use Swift 6 language mode.
+
+### Xcode
+
+Add the package to your project's Package Dependencies by entering the URL `https://github.com/samsonjs/Osiris` and following the usual flow for adding packages.
+
+### Swift Package Manager (SPM)
+
+Add this to your Package.swift dependencies:
+
+```swift
+.package(url: "https://github.com/samsonjs/Osiris.git", .upToNextMajor(from: "1.0.0"))
+```
+
+and add `"Osiris"` to your target dependencies.
+
+### Direct Integration
+
+Alternatively, copy the files you want to use into your project and customize them to suit your needs.
+
+## Usage
+
+### Multipart Form Encoding
 
 Create an encoder and then add parts to it as needed:
 
-```Swift
-let avatarData = UIImage(from: somewhere).jpegData(compressionQuality: 1)
+```swift
+import Osiris
+
+let avatarData = UIImage(systemName: "person.circle")?.jpegData(compressionQuality: 1.0)
 let encoder = MultipartFormEncoder()
 let body = try encoder.encodeData(parts: [
-    .text(name: "email", text: "somebody@example.com"),
-    .text(name: "password", text: "secret"),
-    .binary(name: "avatar", type: "image/jpeg", data: avatarData, filename: "avatar.jpg"),
+    .text("ziggy@example.net", name: "email"),
+    .text("StarmanWaiting", name: "password"),
+    .data(avatarData ?? Data(), name: "avatar", type: "image/jpeg", filename: "avatar.jpg"),
 ])
 ```
 
 The form can be encoded as `Data` in memory, or to a file. There's a hard limit of 50 MB on encoding to memory but in practice you probably never want to go that high purely in memory. If you're adding any kind of image or video file then it's probably better to stream to a file.
 
-```Swift
-let body = try encoder.encodeFile(parts: [/* ... */])
-var request = URLRequest(url: URL(string: "https://example.com/accounts")!)
+```swift
+let body = try encoder.encodeFile(parts: [
+    .text("ziggy@example.net", name: "email"),
+    .text("StarmanWaiting", name: "password"),
+    .data(avatarData ?? Data(), name: "avatar", type: "image/jpeg", filename: "avatar.jpg"),
+])
+
+var request = URLRequest(url: URL(string: "https://example.net/accounts")!)
 request.httpMethod = "POST"
 request.httpBodyStream = InputStream(url: body.url)
 request.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
 request.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
-// ... whatever you normally do with requests
 ```
 
-# HTTPRequest
+### HTTPRequest
 
 Basic usage:
 
-```Swift
-let url = URL(string: "https://example.com")!
+```swift
+let url = URL(string: "https://example.net")!
+
+// GET request with query parameters
+let getRequest = HTTPRequest.get(url, parameters: ["page": "1", "limit": "10"])
+
+// DELETE request with query parameters  
+let deleteRequest = HTTPRequest.delete(url, parameters: ["confirm": "true"])
+
+// Or use the general initializer
 let request = HTTPRequest(method: .get, url: url)
 ```
 
-Fancier usage:
+More advanced usage with parameters and headers:
 
-```Swift
-let url = URL(string: "https://example.com")!
-let params = ["email" : "someone@example.com", "password" : "secret"]
-let request = HTTPRequest(method: .post, url: url, contentType: .json, parameters: params)
+```swift
+let url = URL(string: "https://example.net")!
+let params = ["email": "freddie@example.net", "password": "BohemianRhapsody"]
+
+// POST with JSON parameters (goes in request body)
+let request = HTTPRequest.post(url, contentType: .json, parameters: params)
 request.addHeader(name: "x-custom", value: "42")
 request.addMultipartJPEG(name: "avatar", image: UIImage(), quality: 1, filename: "avatar.jpg")
 ```
 
-You can build a `URLRequest` from an `HTTPRequest` instance using `RequestBuilder`. Or make your own builder.
+You can build a `URLRequest` from an `HTTPRequest` instance using `RequestBuilder`:
 
-# HTTPResponse
+```swift
+let urlRequest = try RequestBuilder.build(request: request)
+```
+
+### HTTPResponse
 
 This enum makes sense of the 3 parameters of `URLSession`'s completion block. Its initializer takes in the optional `URLResponse`, `Data`, and `Error` values and determines if the request succeeded or failed, taking the HTTP status code into account. 200-level statuses are successes and anything else is a failure.
 
-The success case has two associated values: `HTTPURLResponse` and `Data?`, while the failure case has three associated values: `Error`, `HTTPURLResponse`, and `Data?`.
-
-Some properties are exposed for convenience:
-
-- `data`: the optional body data returned by the server.
-
-- `status`: the HTTP status code returned by the server, or 0 if the request itself failed, e.g. if the server cannot be reached.
-
-- `headers`: a dictionary of headers.
-
-- `bodyString`: the response body as a `String`. This is an empty string if the body is empty or there was an error decoding it as UTF8.
-
-- `dictionaryFromJSON`: the decoded body for JSON responses. This is an empty dictionary if the body is empty or there was an error decoding it as a JSON dictionary.
-
-- `underlyingResponse`: the `HTTPURLResponse` in case you need to dive in.
-
-# RequestBuilder
-
-This class takes in an `HTTPRequest` instance and turns it into a `URLRequest` for use with `URLSession`.
-
-Usage:
-
-```Swift
-let urlRequest: URLRequest
-do {
-    urlRequest = try RequestBuilder.build(request: request)
+```swift
+let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+    let httpResponse = HTTPResponse(response: response, data: data, error: error)
+    
+    switch httpResponse {
+    case .success(let httpURLResponse, let data):
+        print("Success: \(httpURLResponse.statusCode)")
+        if let data = data {
+            print("Response: \(String(data: data, encoding: .utf8) ?? "")")
+        }
+    case .failure(let error, let httpURLResponse, let data):
+        print("Failed: \(error)")
+        if let httpURLResponse = httpURLResponse {
+            print("Status: \(httpURLResponse.statusCode)")
+        }
+    }
 }
-catch {
-    log.error("Invalid request \(request): \(error)")
-    return
-}
-// ... do something with urlRequest
 ```
 
-It encodes multipart requests in memory, so you'll need to change it or make your own builder for advanced functionality like encoding multipart forms to disk instead.
+The response provides convenient properties:
 
-# FormEncoder
+- `data`: the optional body data returned by the server
+- `status`: the HTTP status code returned by the server, or 0 if the request itself failed
+- `headers`: a dictionary of headers
+- `bodyString`: the response body as a `String`
+- `dictionaryFromJSON`: the decoded body for JSON responses
+- `underlyingResponse`: the optional `HTTPURLResponse` for direct access
 
-This was lifted from [Alamofire][], but with some minor changes.
+### FormEncoder
 
-```Swift
-let body = FormEncoder.encode(["email" : "someone@example.com", "password" : "secret"])
-// => "email=someone%40example.com&password=secret"
+URL-encoded form data encoder adapted from [Alamofire][]:
+
+```swift
+let body = FormEncoder.encode(["email": "bowie@example.net", "password": "MajorTom"])
+// => "email=bowie%40example.net&password=MajorTom"
 ```
 
 [Alamofire]: https://github.com/Alamofire/Alamofire
 
-# Service: Putting it all Together
+### Complete Example
 
-Take a look at `Service.swift` to see how it can all come together. Grafting your specific service API onto the primitives shown there is an exercise. In 1SE we're just adding methods to `Service` for each specific call, but you could keep them separate instead if you prefer that.
+Here's how everything comes together:
 
-I don't recommend you use `Service` as shown here, but maybe use it as a jumping off point for something that makes sense to you for your specific application.
+```swift
+import Osiris
 
-# Credits
+// Create an HTTP request
+let url = URL(string: "https://httpbin.org/post")!
+let request = HTTPRequest(method: .post, url: url)
 
-Mostly created by Sami Samhuri for [1SE][]. `FormEncoder.swift` was lifted from [Alamofire][].
+// Add multipart form data
+let encoder = MultipartFormEncoder()
+let formData = try encoder.encodeData(parts: [
+    .text("John Doe", name: "name"),
+    .text("john@example.net", name: "email"),
+])
+
+// Build URLRequest
+var urlRequest = try RequestBuilder.build(request: request)
+urlRequest.httpBody = formData.data
+urlRequest.addValue(formData.contentType, forHTTPHeaderField: "Content-Type")
+
+// Make the request
+let task = URLSession.shared.dataTask(with: urlRequest) { data, response, error in
+    let httpResponse = HTTPResponse(response: response, data: data, error: error)
+    
+    switch httpResponse {
+    case .success(let httpURLResponse, let data):
+        print("Upload successful: \(httpURLResponse.statusCode)")
+    case .failure(let error, _, _):
+        print("Upload failed: \(error)")
+    }
+}
+task.resume()
+```
+
+## Credits
+
+Originally created by [@samsonjs][] for [1 Second Everyday][1SE]. `FormEncoder.swift` was adapted from [Alamofire][].
 
 [1SE]: https://1se.co
+[Alamofire]: https://github.com/Alamofire/Alamofire
+[samsonjs]: https://github.com/samsonjs
 
-# License
+## License
 
-Copyright © 2017 [1 Second Everyday][1SE]. All rights reserved.
+Copyright © 2017-2025 [1 Second Everyday][1SE]. Released under the terms of the [MIT License][MIT].
 
-Released under the terms of the MIT license:
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+[MIT]: https://sjs.mit-license.org

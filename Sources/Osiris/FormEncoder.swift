@@ -5,6 +5,7 @@
 import Foundation
 
 extension NSNumber {
+    
     /// [From Argo](https://github.com/thoughtbot/Argo/blob/3da833411e2633bc01ce89542ac16803a163e0f0/Argo/Extensions/NSNumber.swift)
     ///
     /// - Returns: `true` if this instance represent a `CFBoolean` under the hood, as opposed to say a double or integer.
@@ -13,8 +14,40 @@ extension NSNumber {
     }
 }
 
-final class FormEncoder {
-    class func encode(_ parameters: [String: Any]) -> String {
+/// URL-encoded form data encoder adapted from Alamofire.
+///
+/// FormEncoder converts Swift dictionaries into URL-encoded form data strings
+/// suitable for application/x-www-form-urlencoded requests. It handles nested
+/// dictionaries, arrays, and various data types including proper boolean encoding.
+///
+/// ## Usage
+///
+/// ```swift
+/// let parameters = [
+///     "name": "Jane Doe",
+///     "email": "jane@example.net",
+///     "age": 30,
+///     "active": true,
+///     "preferences": ["color": "blue", "theme": "dark"]
+/// ]
+/// 
+/// let encoded = FormEncoder.encode(parameters)
+/// // Result: "active=1&age=30&email=jane%40example.net&name=Jane%20Doe&preferences%5Bcolor%5D=blue&preferences%5Btheme%5D=dark"
+/// ```
+public final class FormEncoder: CustomStringConvertible {
+    
+    /// Encodes a dictionary of parameters into a URL-encoded form string.
+    ///
+    /// The encoding follows these rules:
+    /// - Keys are sorted alphabetically for consistent output
+    /// - Nested dictionaries use bracket notation: `key[subkey]=value`
+    /// - Arrays use empty brackets: `key[]=value1&key[]=value2`
+    /// - Booleans are encoded as "1" for true, "0" for false
+    /// - All keys and values are percent-escaped according to RFC 3986
+    ///
+    /// - Parameter parameters: The dictionary to encode
+    /// - Returns: A URL-encoded form string ready for use in HTTP requests
+    public class func encode(_ parameters: [String: any Sendable]) -> String {
         var components: [(String, String)] = []
 
         for key in parameters.keys.sorted(by: <) {
@@ -33,7 +66,7 @@ final class FormEncoder {
     static func pairs(from key: String, value: Any) -> [(String, String)] {
         var components: [(String, String)] = []
 
-        if let dictionary = value as? [String: Any] {
+        if let dictionary = value as? [String: any Sendable] {
             for (nestedKey, value) in dictionary {
                 components += pairs(from: "\(key)[\(nestedKey)]", value: value)
             }
@@ -85,5 +118,9 @@ final class FormEncoder {
         // FIXME: should we fail instead of falling back the unescaped string here? probably...
         let escaped = string.addingPercentEncoding(withAllowedCharacters: allowedCharacterSet) ?? string
         return escaped
+    }
+    
+    public var description: String {
+        "FormEncoder"
     }
 }
