@@ -80,12 +80,12 @@ public enum HTTPResponse: CustomStringConvertible {
 
     /// The HTTP status code returned by the server, or 0 if the request failed completely.
     public var status: Int {
-        return underlyingResponse?.statusCode ?? 0
+        underlyingResponse?.statusCode ?? 0
     }
 
     /// All HTTP headers returned by the server.
     public var headers: [AnyHashable : Any] {
-        return underlyingResponse?.allHeaderFields ?? [:]
+        underlyingResponse?.allHeaderFields ?? [:]
     }
 
     /// The response body decoded as a UTF-8 string.

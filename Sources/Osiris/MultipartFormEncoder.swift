@@ -40,7 +40,7 @@ extension MultipartFormEncoder {
         }
         
         public var description: String {
-            return "<BodyData size=\(contentLength)>"
+            "<BodyData size=\(contentLength)>"
         }
     }
 
@@ -57,7 +57,7 @@ extension MultipartFormEncoder {
         public let contentLength: Int64
         
         public var description: String {
-            return "<BodyFile file=\(url.lastPathComponent) size=\(contentLength)>"
+            "<BodyFile file=\(url.lastPathComponent) size=\(contentLength)>"
         }
     }
 
@@ -132,7 +132,7 @@ extension MultipartFormEncoder {
         }
         
         public var description: String {
-            return "<Part name=\(name) content=\(content)>"
+            "<Part name=\(name) content=\(content)>"
         }
     }
 }
@@ -361,6 +361,6 @@ public final class MultipartFormEncoder: CustomStringConvertible {
     }
     
     public var description: String {
-        return "<MultipartFormEncoder boundary=\(boundary)>"
+        "<MultipartFormEncoder boundary=\(boundary)>"
     }
 }

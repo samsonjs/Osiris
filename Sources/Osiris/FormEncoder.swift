@@ -121,6 +121,6 @@ public final class FormEncoder: CustomStringConvertible {
     }
     
     public var description: String {
-        return "FormEncoder"
+        "FormEncoder"
     }
 }

@@ -141,6 +141,6 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     }
     
     public var description: String {
-        return "<HTTPRequest \(method) \(url)>"
+        "<HTTPRequest \(method) \(url)>"
     }
 }

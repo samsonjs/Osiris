@@ -16,10 +16,10 @@ public enum HTTPMethod: String, Sendable, CustomStringConvertible {
 
     /// The uppercased string representation of the HTTP method.
     var string: String {
-        return rawValue.uppercased()
+        rawValue.uppercased()
     }
     
     public var description: String {
-        return string
+        string
     }
 }
