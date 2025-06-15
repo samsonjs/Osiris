@@ -21,14 +21,23 @@ private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPRequest")
 /// ## Usage
 ///
 /// ```swift
-/// // Simple GET request
-/// let request = HTTPRequest.get(URL(string: "https://api.example.net/users")!)
+/// // GET request with query parameters
+/// let getRequest = HTTPRequest.get(
+///     URL(string: "https://api.example.net/users")!,
+///     parameters: ["page": "1", "limit": "10"]
+/// )
 ///
 /// // POST with JSON parameters
 /// let jsonRequest = HTTPRequest.post(
 ///     URL(string: "https://api.example.net/users")!,
 ///     contentType: .json,
 ///     parameters: ["name": "Jane", "email": "jane@example.net"]
+/// )
+///
+/// // DELETE with query parameters
+/// let deleteRequest = HTTPRequest.delete(
+///     URL(string: "https://api.example.net/users/123")!,
+///     parameters: ["confirm": "true"]
 /// )
 ///
 /// // Multipart form with file upload
@@ -78,10 +87,10 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     /// Creates a GET request.
     /// - Parameters:
     ///   - url: The target URL
-    ///   - contentType: The content type (typically .none for GET)
+    ///   - parameters: Optional parameters to include as query string
     /// - Returns: A configured HTTPRequest
-    public static func get(_ url: URL, contentType: HTTPContentType = .none) -> HTTPRequest {
-        HTTPRequest(method: .get, url: url, contentType: contentType)
+    public static func get(_ url: URL, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
+        HTTPRequest(method: .get, url: url, contentType: .none, parameters: parameters)
     }
 
     /// Creates a PUT request.
@@ -107,10 +116,10 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     /// Creates a DELETE request.
     /// - Parameters:
     ///   - url: The target URL
-    ///   - contentType: The content type (typically .none for DELETE)
+    ///   - parameters: Optional parameters to include as query string
     /// - Returns: A configured HTTPRequest
-    public static func delete(_ url: URL, contentType: HTTPContentType = .none) -> HTTPRequest {
-        HTTPRequest(method: .delete, url: url, contentType: contentType)
+    public static func delete(_ url: URL, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
+        HTTPRequest(method: .delete, url: url, contentType: .none, parameters: parameters)
     }
 
 #if canImport(UIKit)

@@ -1,8 +1,9 @@
 # Changelog
 
-## [2.0.0] - 2025-06-15
+## [2.0.0] - Unreleased
 
 ### Added
+- **GET/DELETE query parameter support** - Parameters are now automatically encoded as query strings for GET and DELETE requests
 - **Enhanced error types** with localized descriptions and failure reasons
 - **Header convenience method** `addHeader(name:value:)` on `HTTPRequest`
 - **Comprehensive test coverage**

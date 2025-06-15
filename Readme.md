@@ -76,6 +76,14 @@ Basic usage:
 
 ```swift
 let url = URL(string: "https://example.net")!
+
+// GET request with query parameters
+let getRequest = HTTPRequest.get(url, parameters: ["page": "1", "limit": "10"])
+
+// DELETE request with query parameters  
+let deleteRequest = HTTPRequest.delete(url, parameters: ["confirm": "true"])
+
+// Or use the general initializer
 let request = HTTPRequest(method: .get, url: url)
 ```
 
@@ -84,7 +92,9 @@ More advanced usage with parameters and headers:
 ```swift
 let url = URL(string: "https://example.net")!
 let params = ["email": "freddie@example.net", "password": "BohemianRhapsody"]
-let request = HTTPRequest(method: .post, url: url, contentType: .json, parameters: params)
+
+// POST with JSON parameters (goes in request body)
+let request = HTTPRequest.post(url, contentType: .json, parameters: params)
 request.addHeader(name: "x-custom", value: "42")
 request.addMultipartJPEG(name: "avatar", image: UIImage(), quality: 1, filename: "avatar.jpg")
 ```

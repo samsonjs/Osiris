@@ -236,4 +236,61 @@ class RequestBuilderTests: XCTestCase {
         XCTAssertTrue(bodyString.contains("band=Queen"))
     }
     
+    func testBuildGETRequestWithQueryParameters() throws {
+        let httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "John Doe", "email": "john@example.net"])
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
+        
+        XCTAssertEqual(urlRequest.httpMethod, "GET")
+        XCTAssertNil(urlRequest.httpBody)
+        XCTAssertNil(urlRequest.value(forHTTPHeaderField: "Content-Type"))
+        
+        let urlString = urlRequest.url?.absoluteString ?? ""
+        XCTAssertTrue(urlString.contains("name=John%20Doe"), "URL should contain encoded name parameter")
+        XCTAssertTrue(urlString.contains("email=john@example.net"), "URL should contain email parameter")
+        XCTAssertTrue(urlString.contains("?"), "URL should contain query separator")
+    }
+    
+    func testBuildDELETERequestWithQueryParameters() throws {
+        let httpRequest = HTTPRequest.delete(baseURL, parameters: ["id": "123", "confirm": "true"])
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
+        
+        XCTAssertEqual(urlRequest.httpMethod, "DELETE")
+        XCTAssertNil(urlRequest.httpBody)
+        XCTAssertNil(urlRequest.value(forHTTPHeaderField: "Content-Type"))
+        
+        let urlString = urlRequest.url?.absoluteString ?? ""
+        XCTAssertTrue(urlString.contains("id=123"))
+        XCTAssertTrue(urlString.contains("confirm=true"))
+        XCTAssertTrue(urlString.contains("?"))
+    }
+    
+    func testBuildGETRequestWithExistingQueryString() throws {
+        let urlWithQuery = URL(string: "https://api.example.net/users?existing=param")!
+        let httpRequest = HTTPRequest.get(urlWithQuery, parameters: ["new": "value"])
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
+        
+        let urlString = urlRequest.url?.absoluteString ?? ""
+        XCTAssertTrue(urlString.contains("existing=param"))
+        XCTAssertTrue(urlString.contains("new=value"))
+        XCTAssertTrue(urlString.contains("&"))
+    }
+    
+    func testBuildGETRequestWithMultipartThrowsError() throws {
+        var httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "value"])
+        httpRequest.contentType = HTTPContentType.multipart
+        
+        XCTAssertThrowsError(try RequestBuilder.build(request: httpRequest)) { error in
+            XCTAssertTrue(error is RequestBuilderError)
+        }
+    }
+    
+    func testBuildDELETERequestWithPartsThrowsError() throws {
+        var httpRequest = HTTPRequest.delete(baseURL, parameters: ["id": "123"])
+        httpRequest.parts = [MultipartFormEncoder.Part.text("value", name: "test")]
+        
+        XCTAssertThrowsError(try RequestBuilder.build(request: httpRequest)) { error in
+            XCTAssertTrue(error is RequestBuilderError)
+        }
+    }
+    
 }

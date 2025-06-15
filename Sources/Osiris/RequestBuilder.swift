@@ -42,24 +42,22 @@ public final class RequestBuilder {
     
     /// Converts an HTTPRequest to a URLRequest ready for use with URLSession.
     ///
-    /// This method handles encoding of parameters according to the request's content type:
-    /// - `.json`: Parameters are encoded as JSON in the request body
-    /// - `.formEncoded`: Parameters are URL-encoded in the request body  
+    /// This method handles encoding of parameters according to the request's method and content type:
+    /// - **GET/DELETE**: Parameters are encoded as query string parameters
+    /// - `.json`: Parameters are encoded as JSON in the request body (POST/PUT/PATCH)
+    /// - `.formEncoded`: Parameters are URL-encoded in the request body (POST/PUT/PATCH)
     /// - `.multipart`: Parts are encoded as multipart/form-data (in memory)
     /// - `.none`: Falls back to form encoding for compatibility
     ///
     /// - Parameter request: The HTTPRequest to convert
     /// - Returns: A URLRequest ready for URLSession
-    /// - Throws: `RequestBuilderError.invalidFormData` if form encoding fails,
-    ///           or various encoding errors from JSONSerialization or MultipartFormEncoder
+    /// - Throws: `RequestBuilderError.invalidFormData` if form encoding fails, if GET/DELETE
+    ///           requests contain multipart parts, or various encoding errors from JSONSerialization
+    ///           or MultipartFormEncoder
     ///
-    /// - Note: GET and DELETE requests with parameters are not currently supported
     /// - Warning: Multipart requests are encoded entirely in memory. For large files,
     ///            consider using MultipartFormEncoder.encodeFile() directly
     public class func build(request: HTTPRequest) throws -> URLRequest {
-        assert(!(request.method == .get && request.parameters != nil), "encoding GET params is not yet implemented")
-        assert(!(request.method == .delete && request.parameters != nil), "encoding DELETE params is not yet implemented")
-        
         var result = URLRequest(url: request.url)
         result.httpMethod = request.method.string
         
@@ -67,8 +65,14 @@ public final class RequestBuilder {
             result.addValue(value, forHTTPHeaderField: name)
         }
 
-        // When parts are provided then override to be multipart regardless of the content type.
-        if !request.parts.isEmpty || request.contentType == .multipart {
+        // Handle parameters based on HTTP method
+        if request.method == .get || request.method == .delete, let params = request.parameters {
+            // Validate that GET and DELETE requests don't want request bodies, which we don't support.
+            guard request.contentType != .multipart, request.parts.isEmpty else {
+                throw RequestBuilderError.invalidFormData(request)
+            }
+            try encodeQueryParameters(to: &result, parameters: params)
+        } else if !request.parts.isEmpty || request.contentType == .multipart {
             if request.contentType != .multipart {
                 log.info("Encoding request as multipart, overriding its content type of \(request.contentType)")
             }
@@ -76,7 +80,7 @@ public final class RequestBuilder {
         } else if let params = request.parameters {
             try encodeParameters(to: &result, request: request, parameters: params)
         }
-        
+
         return result
     }
     
@@ -115,5 +119,24 @@ public final class RequestBuilder {
             throw RequestBuilderError.invalidFormData(request)
         }
         urlRequest.httpBody = formData
+    }
+    
+    private class func encodeQueryParameters(to urlRequest: inout URLRequest, parameters: [String: any Sendable]) throws {
+        guard let url = urlRequest.url else {
+            return
+        }
+        
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let newQueryItems = parameters.compactMap { (key, value) -> URLQueryItem? in
+            URLQueryItem(name: key, value: String(describing: value))
+        }
+        
+        if let existingQueryItems = components?.queryItems {
+            components?.queryItems = existingQueryItems + newQueryItems
+        } else {
+            components?.queryItems = newQueryItems
+        }
+        
+        urlRequest.url = components?.url ?? url
     }
 }
