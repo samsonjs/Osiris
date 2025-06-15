@@ -137,4 +137,33 @@ public enum HTTPResponse: CustomStringConvertible {
             return "<HTTPResponse.failure error=\(error) status=\(status) size=\(dataSize)>"
         }
     }
+    
+    /// Decodes the response body as a Codable type using JSONDecoder.
+    /// - Parameters:
+    ///   - type: The Codable type to decode to
+    ///   - decoder: Optional JSONDecoder to use (defaults to a new instance)
+    /// - Returns: The decoded object
+    /// - Throws: DecodingError if decoding fails, or various other errors
+    public func decode<T: Codable>(_ type: T.Type, using decoder: JSONDecoder = JSONDecoder()) throws -> T {
+        guard let data = self.data else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: [], debugDescription: "No data found in response")
+            )
+        }
+        return try decoder.decode(type, from: data)
+    }
+    
+    /// Attempts to decode the response body as a Codable type, returning nil on failure.
+    /// - Parameters:
+    ///   - type: The Codable type to decode to
+    ///   - decoder: Optional JSONDecoder to use (defaults to a new instance)
+    /// - Returns: The decoded object, or nil if decoding fails
+    public func tryDecode<T: Codable>(_ type: T.Type, using decoder: JSONDecoder = JSONDecoder()) -> T? {
+        do {
+            return try decode(type, using: decoder)
+        } catch {
+            log.warning("Failed to decode response as \(String(describing: type)): \(error)")
+            return nil
+        }
+    }
 }

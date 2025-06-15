@@ -77,6 +77,8 @@ public final class RequestBuilder {
                 log.info("Encoding request as multipart, overriding its content type of \(request.contentType)")
             }
             try encodeMultipartContent(to: &result, request: request)
+        } else if let body = request.body {
+            try encodeCodableBody(to: &result, body: body)
         } else if let params = request.parameters {
             try encodeParameters(to: &result, request: request, parameters: params)
         }
@@ -119,6 +121,12 @@ public final class RequestBuilder {
             throw RequestBuilderError.invalidFormData(request)
         }
         urlRequest.httpBody = formData
+    }
+    
+    private class func encodeCodableBody(to urlRequest: inout URLRequest, body: any Codable & Sendable) throws {
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        let encoder = JSONEncoder()
+        urlRequest.httpBody = try encoder.encode(body)
     }
     
     private class func encodeQueryParameters(to urlRequest: inout URLRequest, parameters: [String: any Sendable]) throws {

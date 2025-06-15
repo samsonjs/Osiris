@@ -61,6 +61,9 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     /// Parameters to be encoded according to the content type.
     public var parameters: [String: any Sendable]?
 
+    /// Codable body to be JSON encoded (takes precedence over parameters).
+    public var body: (any Codable & Sendable)?
+
     /// Additional HTTP headers for the request.
     public var headers: [String: String] = [:]
     
@@ -77,11 +80,13 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     ///   - url: The target URL
     ///   - contentType: The content type for encoding parameters
     ///   - parameters: Optional parameters to include in the request body
-    public init(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil) {
+    ///   - body: Optional Codable body to be JSON encoded
+    public init(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil, body: (any Codable & Sendable)? = nil) {
         self.method = method
         self.url = url
         self.contentType = contentType
         self.parameters = parameters
+        self.body = body
     }
 
     /// Creates a GET request.
@@ -120,6 +125,24 @@ public struct HTTPRequest: Sendable, CustomStringConvertible {
     /// - Returns: A configured HTTPRequest
     public static func delete(_ url: URL, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
         HTTPRequest(method: .delete, url: url, contentType: .none, parameters: parameters)
+    }
+    
+    /// Creates a POST request with a Codable body.
+    /// - Parameters:
+    ///   - url: The target URL
+    ///   - body: The Codable body to be JSON encoded
+    /// - Returns: A configured HTTPRequest with JSON content type
+    public static func postJSON<T: Codable & Sendable>(_ url: URL, body: T) -> HTTPRequest {
+        HTTPRequest(method: .post, url: url, contentType: .json, body: body)
+    }
+    
+    /// Creates a PUT request with a Codable body.
+    /// - Parameters:
+    ///   - url: The target URL
+    ///   - body: The Codable body to be JSON encoded
+    /// - Returns: A configured HTTPRequest with JSON content type
+    public static func putJSON<T: Codable & Sendable>(_ url: URL, body: T) -> HTTPRequest {
+        HTTPRequest(method: .put, url: url, contentType: .json, body: body)
     }
 
 #if canImport(UIKit)
