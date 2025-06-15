@@ -27,7 +27,7 @@ Add the package to your project's Package Dependencies by entering the URL `http
 Add this to your Package.swift dependencies:
 
 ```swift
-.package(url: "https://github.com/samsonjs/Osiris.git", .upToNextMajor(from: "1.0.0"))
+.package(url: "https://github.com/samsonjs/Osiris.git", .upToNextMajor(from: "2.0.0"))
 ```
 
 and add `"Osiris"` to your target dependencies.

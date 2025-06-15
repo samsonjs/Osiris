@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2025-06-15
 
 ### Added
 - **GET/DELETE query parameter support** - Parameters are now automatically encoded as query strings for GET and DELETE requests
