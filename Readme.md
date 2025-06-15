@@ -191,7 +191,7 @@ Originally created by [@samsonjs][] for [1 Second Everyday][1SE]. `FormEncoder.s
 
 [1SE]: https://1se.co
 [Alamofire]: https://github.com/Alamofire/Alamofire
-[samsonjs]: https://github.com/samsonjs
+[@samsonjs]: https://github.com/samsonjs
 
 ## License
 
