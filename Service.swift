@@ -2,9 +2,14 @@
 //  Created by Sami Samhuri on 2016-07-30.
 //  Copyright © 2016 1 Second Everyday. All rights reserved.
 //
+//  This file shows how you can actually use Osiris with URLSession.
+//
 
-import PromiseKit
+import Foundation
+import OSLog
 import UIKit
+
+private let log = Logger(subsystem: "co.1se.Osiris", category: "Service")
 
 enum ServiceError: Error {
     case malformedRequest(HTTPRequest)
@@ -37,9 +42,9 @@ enum ServiceEnvironment: String {
 
     var baseURL: URL {
         switch self {
-        case .production: return URL(string: "https://example.com")!
-        case .staging: return URL(string: "https://staging.example.com")!
-        case .development: return URL(string: "https://dev.example.com")!
+        case .production: return URL(string: "https://example.net")!
+        case .staging: return URL(string: "https://staging.example.net")!
+        case .development: return URL(string: "https://dev.example.net")!
         }
     }
 }
@@ -51,8 +56,7 @@ final class Service {
 
     init(environment: ServiceEnvironment, urlSessionConfig: URLSessionConfiguration? = nil) {
         self.environment = environment
-        self.urlSession = URLSession(configuration: .urlSessionConfig ?? .default)
-        super.init()
+        self.urlSession = URLSession(configuration: urlSessionConfig ?? .default)
     }
 
     func reconfigure(environment: ServiceEnvironment, urlSessionConfig: URLSessionConfiguration? = nil) {
@@ -73,17 +77,17 @@ final class Service {
     // MARK: - Your service calls here
 
     // For example... (you probably want a more specific result type unpacked from the response though)
-    func signUp(email: String, password: String, avatar: UIImage) -> Promise<HTTPResponse> {
+    func signUp(email: String, password: String, avatar: UIImage) async throws -> HTTPResponse {
         let parameters = ["email" : email, "password" : password]
         let url = environment.baseURL.appendingPathComponent("accounts")
         var request = HTTPRequest.post(url, contentType: .formEncoded, parameters: parameters)
         request.addMultipartJPEG(name: "avatar", image: avatar, quality: 1)
-        return performRequest(request)
+        return try await performRequest(request)
     }
 
     // MARK: - Requests
 
-    fileprivate func deleteRequest(path: String, parameters: [String : Any]? = nil) -> HTTPRequest {
+    fileprivate func deleteRequest(path: String, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
         return newRequest(method: .delete, path: path, parameters: parameters)
     }
 
@@ -91,32 +95,32 @@ final class Service {
         return newRequest(method: .get, path: path)
     }
 
-    fileprivate func patchRequest(path: String, parameters: [String : Any]) -> HTTPRequest {
+    fileprivate func patchRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
         return newRequest(method: .patch, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
-    fileprivate func postJSONRequest(path: String, parameters: [String : Any]) -> HTTPRequest {
+    fileprivate func postJSONRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
         return newRequest(method: .post, path: path, contentType: .json, parameters: parameters)
     }
 
-    fileprivate func postRequest(path: String, parameters: [String : Any]) -> HTTPRequest {
+    fileprivate func postRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
         return newRequest(method: .post, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
-    fileprivate func putJSONRequest(path: String, parameters: [String : Any]) -> HTTPRequest {
+    fileprivate func putJSONRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
         return newRequest(method: .put, path: path, contentType: .json, parameters: parameters)
     }
 
-    fileprivate func putRequest(path: String, parameters: [String : Any]) -> HTTPRequest {
+    fileprivate func putRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
         return newRequest(method: .put, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
-    fileprivate func newRequest(method: HTTPMethod, path: String, contentType: HTTPContentType = .none, parameters: [String : Any]? = nil) -> HTTPRequest {
+    fileprivate func newRequest(method: HTTPMethod, path: String, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
         let url = environment.baseURL.appendingPathComponent(path)
         return newRequest(method: method, url: url, contentType: contentType, parameters: parameters)
     }
 
-    fileprivate func newRequest(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String : Any]? = nil) -> HTTPRequest {
+    fileprivate func newRequest(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
         let request = HTTPRequest(method: method, url: url, contentType: contentType, parameters: parameters)
 
         // Authorize requests to our service automatically.
@@ -132,41 +136,38 @@ final class Service {
         request.addHeader(name: "Authorization", value: basicAuth)
     }
 
-    func performRequest(_ request: HTTPRequest) -> Promise<HTTPResponse> {
+    func performRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         let urlRequest: URLRequest
         do {
             urlRequest = try RequestBuilder.build(request: request)
         }
         catch {
             log.error("Invalid request \(request): \(error)")
-            return Promise(error: ServiceError.malformedRequest(request))
+            throw ServiceError.malformedRequest(request)
         }
-        return Promise { fulfill, reject in
-            let start = Date()
-            let task = self.urlSession.dataTask(with: urlRequest) { maybeData, maybeResponse, maybeError in
-                let response = HTTPResponse(response: maybeResponse, data: maybeData, error: maybeError)
-                _ = {
-                    let end = Date()
-                    let duration = end.timeIntervalSince1970 - start.timeIntervalSince1970
-                    self.logRequest(request, response: response, duration: duration)
-                }()
-                fulfill(response)
-            }
-            task.resume()
-        }
+        
+        let start = Date()
+        let (data, response) = try await urlSession.data(for: urlRequest)
+        let httpResponse = HTTPResponse(response: response, data: data, error: nil)
+        
+        let end = Date()
+        let duration = end.timeIntervalSince1970 - start.timeIntervalSince1970
+        logRequest(request, response: httpResponse, duration: duration)
+        
+        return httpResponse
     }
 
-    private func scrubParameters(_ parameters: [String : Any], for url: URL) -> [String : Any] {
+    private func scrubParameters(_ parameters: [String: any Sendable], for url: URL) -> [String: any Sendable] {
         return parameters.reduce([:], { params, param in
             var params = params
             let (name, value) = param
-            let isBlacklisted = self.isBlacklisted(url: url, paramName: name)
-            params[name] = isBlacklisted ? "<secret>" : value
+            let isSensitive = self.isSensitive(url: url, paramName: name)
+            params[name] = isSensitive ? "<secret>" : value
             return params
         })
     }
 
-    private func isBlacklisted(url: URL, paramName: String) -> Bool {
+    private func isSensitive(url: URL, paramName: String) -> Bool {
         return paramName.contains("password")
     }
 
