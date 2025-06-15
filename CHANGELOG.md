@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.1] - Unreleased
+
+[2.0.1]: https://github.com/samsonjs/Osiris/compare/2.0.0...main
+
 ## [2.0.0] - 2025-06-15
 
 ### Added
