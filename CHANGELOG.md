@@ -1,6 +1,9 @@
 # Changelog
 
-## [2.0.1] - Unreleased
+## [2.0.1] - 2025-06-15
+
+### Fixed
+- GET and DELETE requests with empty parameters no longer include unnecessary question mark in URL
 
 [2.0.1]: https://github.com/samsonjs/Osiris/compare/2.0.0...main
 
