@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 import UIKit
 
-private let log = Logger(subsystem: "co.1se.Osiris", category: "Service")
+private let log = Logger(subsystem: "net.samhuri.Osiris", category: "Service")
 
 enum ServiceError: Error {
     case malformedRequest(HTTPRequest)
@@ -32,7 +32,6 @@ enum ServiceEnvironment: String {
             return selected
         }
         set {
-            assert(Thread.isMainThread)
             guard newValue != selected else {
                 return
             }
@@ -87,32 +86,32 @@ final class Service {
 
     // MARK: - Requests
 
-    fileprivate func deleteRequest(path: String, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
-        return newRequest(method: .delete, path: path, parameters: parameters)
+    fileprivate func delete(_ path: String, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
+        newRequest(method: .delete, path: path, parameters: parameters)
     }
 
-    fileprivate func getRequest(path: String) -> HTTPRequest {
-        return newRequest(method: .get, path: path)
+    fileprivate func get(_ path: String) -> HTTPRequest {
+        newRequest(method: .get, path: path)
     }
 
-    fileprivate func patchRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
-        return newRequest(method: .patch, path: path, contentType: .formEncoded, parameters: parameters)
+    fileprivate func patch(_ path: String, parameters: [String: any Sendable]) -> HTTPRequest {
+        newRequest(method: .patch, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
-    fileprivate func postJSONRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
-        return newRequest(method: .post, path: path, contentType: .json, parameters: parameters)
+    fileprivate func postJSON(_ path: String, parameters: [String: any Sendable]) -> HTTPRequest {
+        newRequest(method: .post, path: path, contentType: .json, parameters: parameters)
     }
 
-    fileprivate func postRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
-        return newRequest(method: .post, path: path, contentType: .formEncoded, parameters: parameters)
+    fileprivate func post(_ path: String, parameters: [String: any Sendable]) -> HTTPRequest {
+        newRequest(method: .post, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
-    fileprivate func putJSONRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
-        return newRequest(method: .put, path: path, contentType: .json, parameters: parameters)
+    fileprivate func putJSON(_ path: String, parameters: [String: any Sendable]) -> HTTPRequest {
+        newRequest(method: .put, path: path, contentType: .json, parameters: parameters)
     }
 
-    fileprivate func putRequest(path: String, parameters: [String: any Sendable]) -> HTTPRequest {
-        return newRequest(method: .put, path: path, contentType: .formEncoded, parameters: parameters)
+    fileprivate func put(_ path: String, parameters: [String: any Sendable]) -> HTTPRequest {
+        newRequest(method: .put, path: path, contentType: .formEncoded, parameters: parameters)
     }
 
     fileprivate func newRequest(method: HTTPMethod, path: String, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
@@ -123,7 +122,7 @@ final class Service {
     fileprivate func newRequest(method: HTTPMethod, url: URL, contentType: HTTPContentType = .none, parameters: [String: any Sendable]? = nil) -> HTTPRequest {
         let request = HTTPRequest(method: method, url: url, contentType: contentType, parameters: parameters)
 
-        // Authorize requests to our service automatically.
+        // Authorize requests to your service automatically.
         if let token = self.token, url.hasBaseURL(environment.baseURL) {
             authorizeRequest(request, token: token)
         }
@@ -133,28 +132,11 @@ final class Service {
     fileprivate func authorizeRequest(_ request: HTTPRequest, token: String) {
         let encodedCredentials = "api:\(token)".base64
         let basicAuth = "Basic \(encodedCredentials)"
-        request.addHeader(name: "Authorization", value: basicAuth)
+        request.headers["Authorization"] = basicAuth
     }
 
-    func performRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
-        let urlRequest: URLRequest
-        do {
-            urlRequest = try RequestBuilder.build(request: request)
-        }
-        catch {
-            log.error("Invalid request \(request): \(error)")
-            throw ServiceError.malformedRequest(request)
-        }
-        
-        let start = Date()
-        let (data, response) = try await urlSession.data(for: urlRequest)
-        let httpResponse = HTTPResponse(response: response, data: data, error: nil)
-        
-        let end = Date()
-        let duration = end.timeIntervalSince1970 - start.timeIntervalSince1970
-        logRequest(request, response: httpResponse, duration: duration)
-        
-        return httpResponse
+    func performRequest<Response: Decodable>(_ request: HTTPRequest) async throws -> Response {
+        try await urlSession.perform(RequestBuilder.build(request: request))
     }
 
     private func scrubParameters(_ parameters: [String: any Sendable], for url: URL) -> [String: any Sendable] {

@@ -9,7 +9,7 @@
 import XCTest
 
 class RequestBuilderTests: XCTestCase {
-    let baseURL = URL(string: "https://api.example.net/users")!
+    let baseURL = URL(string: "https://api.example.net/riders")!
 
     func testBuildBasicGETRequest() throws {
         let httpRequest = HTTPRequest.get(baseURL)
@@ -41,7 +41,7 @@ class RequestBuilderTests: XCTestCase {
 
     func testBuildJSONRequest() throws {
         let parameters = ["name": "Jane", "age": 30] as [String: any Sendable]
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .json, parameters: parameters)
+        let httpRequest = HTTPRequest.postJSON(baseURL, body: parameters)
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -57,7 +57,7 @@ class RequestBuilderTests: XCTestCase {
 
     func testBuildFormEncodedRequest() throws {
         let parameters = ["email": "john@example.net", "password": "TaylorSwift1989"]
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .formEncoded, parameters: parameters)
+        let httpRequest = HTTPRequest.postForm(baseURL, parameters: parameters)
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -73,11 +73,11 @@ class RequestBuilderTests: XCTestCase {
     // This is by design - developers should specify an appropriate content type
 
     func testBuildMultipartRequest() throws {
-        var httpRequest = HTTPRequest.post(baseURL)
-        httpRequest.parts = [
-            .text("Jane Doe", name: "name"),
-            .data(Data("test".utf8), name: "file", type: "text/plain", filename: "test.txt")
+        let parts = [
+            MultipartFormEncoder.Part.text("Jane Doe", name: "name"),
+            MultipartFormEncoder.Part.data(Data("test".utf8), name: "file", type: "text/plain", filename: "test.txt")
         ]
+        let httpRequest = HTTPRequest.postMultipart(baseURL, parts: parts)
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -100,14 +100,14 @@ class RequestBuilderTests: XCTestCase {
         // Since FormEncoder is quite robust and UTF-8 encoding rarely fails,
         // we'll test this by creating a subclass that can force the failure
         // But for now, we'll document this edge case exists
-        XCTAssertNoThrow(try RequestBuilder.build(request: HTTPRequest.post(baseURL, contentType: .formEncoded, parameters: ["test": "value"])))
+        XCTAssertNoThrow(try RequestBuilder.build(request: HTTPRequest.postForm(baseURL, parameters: ["test": "value"])))
     }
 
     func testBuildRequestWithAllHTTPMethods() throws {
         let methods: [HTTPMethod] = [.get, .post, .put, .patch, .delete]
 
         for method in methods {
-            let httpRequest = HTTPRequest(method: method, url: baseURL)
+            let httpRequest = try HTTPRequest(method: method, url: baseURL)
             let urlRequest = try RequestBuilder.build(request: httpRequest)
 
             XCTAssertEqual(urlRequest.httpMethod, method.string)
@@ -115,7 +115,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestPreservesURL() throws {
-        let complexURL = URL(string: "https://api.example.net/users?page=1#section")!
+        let complexURL = URL(string: "https://api.example.net/riders?page=1#section")!
         let httpRequest = HTTPRequest.get(complexURL)
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
@@ -133,9 +133,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestWithEmptyMultipartParts() throws {
-        var httpRequest = HTTPRequest.post(baseURL)
-        httpRequest.parts = []
-        httpRequest.contentType = .multipart // Explicitly set to multipart
+        let httpRequest = HTTPRequest.postMultipart(baseURL, parts: [])
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -145,11 +143,11 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestWithLargeMultipartData() throws {
-        var httpRequest = HTTPRequest.post(baseURL)
         let largeData = Data(repeating: 65, count: 1024 * 1024) // 1MB of 'A' characters
-        httpRequest.parts = [
-            .data(largeData, name: "largefile", type: "application/octet-stream", filename: "large.bin")
+        let parts = [
+            MultipartFormEncoder.Part.data(largeData, name: "largefile", type: "application/octet-stream", filename: "large.bin")
         ]
+        let httpRequest = HTTPRequest.postMultipart(baseURL, parts: parts)
 
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -173,7 +171,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestWithNilParameters() throws {
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .json, parameters: nil)
+        let httpRequest = HTTPRequest.post(baseURL)
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
         // RequestBuilder may not set Content-Type if there are no parameters to encode
@@ -181,7 +179,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestWithEmptyParameters() throws {
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .json, parameters: [:])
+        let httpRequest = HTTPRequest.postJSON(baseURL, body: [:])
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
         XCTAssertEqual(urlRequest.value(forHTTPHeaderField: "Content-Type"), "application/json")
@@ -192,7 +190,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildRequestSetsContentType() throws {
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .json, parameters: ["test": "value"])
+        let httpRequest = HTTPRequest.postJSON(baseURL, body: ["test": "value"])
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
         // RequestBuilder should set the correct content type when there are parameters to encode
@@ -212,7 +210,7 @@ class RequestBuilderTests: XCTestCase {
             ] as [String: any Sendable]
         ]
 
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .json, parameters: complexParams)
+        let httpRequest = HTTPRequest.postJSON(baseURL, body: complexParams)
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
         XCTAssertNotNil(urlRequest.httpBody)
@@ -222,22 +220,21 @@ class RequestBuilderTests: XCTestCase {
         XCTAssertEqual(person["age"] as? Int, 69)
     }
 
-    func testBuildRequestWithNoneContentTypeFallsBackToFormEncoding() throws {
-        // Test the .none content type fallthrough case with a warning
-        let httpRequest = HTTPRequest.post(baseURL, contentType: .none, parameters: ["email": "freddie@example.net", "band": "Queen"])
+    func testBuildRequestWithExplicitFormEncoding() throws {
+        // Test explicit form encoding
+        let httpRequest = HTTPRequest.postForm(baseURL, parameters: ["email": "freddie@example.net", "band": "Queen"])
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
-        // Should fall back to form encoding and log a warning
         XCTAssertEqual(urlRequest.value(forHTTPHeaderField: "Content-Type"), "application/x-www-form-urlencoded")
         XCTAssertNotNil(urlRequest.httpBody)
 
-        let bodyString = String(data: urlRequest.httpBody!, encoding: .utf8)!
-        XCTAssertTrue(bodyString.contains("email=freddie%40example.net"))
-        XCTAssertTrue(bodyString.contains("band=Queen"))
+        let bodyString = String(bytes: urlRequest.httpBody!, encoding: .utf8)
+        XCTAssertTrue(bodyString?.contains("email=freddie%40example.net") ?? false)
+        XCTAssertTrue(bodyString?.contains("band=Queen") ?? false)
     }
 
     func testBuildGETRequestWithQueryParameters() throws {
-        let httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "John Doe", "email": "john@example.net"])
+        let httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "Neko Case", "email": "neko@example.net"])
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
         XCTAssertEqual(urlRequest.httpMethod, "GET")
@@ -245,8 +242,8 @@ class RequestBuilderTests: XCTestCase {
         XCTAssertNil(urlRequest.value(forHTTPHeaderField: "Content-Type"))
 
         let urlString = urlRequest.url?.absoluteString ?? ""
-        XCTAssertTrue(urlString.contains("name=John%20Doe"), "URL should contain encoded name parameter")
-        XCTAssertTrue(urlString.contains("email=john@example.net"), "URL should contain email parameter")
+        XCTAssertTrue(urlString.contains("name=Neko%20Case"), "URL should contain encoded name parameter")
+        XCTAssertTrue(urlString.contains("email=neko@example.net"), "URL should contain email parameter")
         XCTAssertTrue(urlString.contains("?"), "URL should contain query separator")
     }
 
@@ -265,7 +262,7 @@ class RequestBuilderTests: XCTestCase {
     }
 
     func testBuildGETRequestWithExistingQueryString() throws {
-        let urlWithQuery = URL(string: "https://api.example.net/users?existing=param")!
+        let urlWithQuery = URL(string: "https://api.example.net/riders?existing=param")!
         let httpRequest = HTTPRequest.get(urlWithQuery, parameters: ["new": "value"])
         let urlRequest = try RequestBuilder.build(request: httpRequest)
 
@@ -275,22 +272,22 @@ class RequestBuilderTests: XCTestCase {
         XCTAssertTrue(urlString.contains("&"))
     }
 
-    func testBuildGETRequestWithMultipartThrowsError() throws {
-        var httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "value"])
-        httpRequest.contentType = HTTPContentType.multipart
+    func testBuildGETRequestWithFormParameters() throws {
+        let httpRequest = HTTPRequest.get(baseURL, parameters: ["name": "value"])
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
 
-        XCTAssertThrowsError(try RequestBuilder.build(request: httpRequest)) { error in
-            XCTAssertTrue(error is RequestBuilderError)
-        }
+        // GET parameters should be encoded as query string
+        XCTAssertTrue(urlRequest.url?.query?.contains("name=value") ?? false)
+        XCTAssertNil(urlRequest.httpBody)
     }
 
-    func testBuildDELETERequestWithPartsThrowsError() throws {
-        var httpRequest = HTTPRequest.delete(baseURL, parameters: ["id": "123"])
-        httpRequest.parts = [MultipartFormEncoder.Part.text("value", name: "test")]
+    func testBuildDELETERequestWithParameters() throws {
+        let httpRequest = HTTPRequest.delete(baseURL, parameters: ["id": "123"])
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
 
-        XCTAssertThrowsError(try RequestBuilder.build(request: httpRequest)) { error in
-            XCTAssertTrue(error is RequestBuilderError)
-        }
+        // DELETE parameters should be encoded as query string
+        XCTAssertTrue(urlRequest.url?.query?.contains("id=123") ?? false)
+        XCTAssertNil(urlRequest.httpBody)
     }
 
     func testBuildGETRequestWithEmptyParametersDoesNotIncludeQueryString() throws {
@@ -306,4 +303,55 @@ class RequestBuilderTests: XCTestCase {
         XCTAssertFalse(urlString.contains("?"), "URL should not contain question mark when parameters are empty")
     }
 
+    func testBuildRequestWithFileData() throws {
+        // Create a temporary file for testing
+        let tempDir = FileManager.default.temporaryDirectory
+        let testFileURL = tempDir.appendingPathComponent("test_file.txt")
+        let testContent = "This is test file content for streaming"
+        try testContent.write(to: testFileURL, atomically: true, encoding: .utf8)
+
+        defer {
+            try? FileManager.default.removeItem(at: testFileURL)
+        }
+
+        let httpRequest = HTTPRequest.postFile(baseURL, fileURL: testFileURL)
+        let urlRequest = try RequestBuilder.build(request: httpRequest)
+
+        XCTAssertEqual(urlRequest.httpMethod, "POST")
+        XCTAssertNotNil(urlRequest.httpBodyStream)
+        XCTAssertNil(urlRequest.httpBody) // Should use stream, not body
+
+        // Should set Content-Length if file size is available
+        let contentLength = urlRequest.value(forHTTPHeaderField: "Content-Length")
+        XCTAssertNotNil(contentLength)
+        XCTAssertEqual(Int(contentLength!), testContent.utf8.count)
+
+        // Should set Content-Type based on file extension
+        let contentType = urlRequest.value(forHTTPHeaderField: "Content-Type")
+        XCTAssertEqual(contentType, "text/plain")
+    }
+
+    func testBuildRequestWithFileDataSetsCorrectContentType() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+
+        // Test JSON file
+        let jsonFileURL = tempDir.appendingPathComponent("test.json")
+        try "{}".write(to: jsonFileURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: jsonFileURL) }
+
+        let jsonRequest = HTTPRequest.postFile(baseURL, fileURL: jsonFileURL)
+        let jsonURLRequest = try RequestBuilder.build(request: jsonRequest)
+
+        XCTAssertEqual(jsonURLRequest.value(forHTTPHeaderField: "Content-Type"), "application/json")
+
+        // Test PNG file
+        let pngFileURL = tempDir.appendingPathComponent("test.png")
+        try Data().write(to: pngFileURL)
+        defer { try? FileManager.default.removeItem(at: pngFileURL) }
+
+        let pngRequest = HTTPRequest.putFile(baseURL, fileURL: pngFileURL)
+        let pngURLRequest = try RequestBuilder.build(request: pngRequest)
+
+        XCTAssertEqual(pngURLRequest.value(forHTTPHeaderField: "Content-Type"), "image/png")
+    }
 }
