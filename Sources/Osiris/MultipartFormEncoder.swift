@@ -59,6 +59,21 @@ extension MultipartFormEncoder {
         public var description: String {
             "<BodyFile file=\(url.lastPathComponent) size=\(contentLength)>"
         }
+
+        /// Removes the temporary file from disk.
+        ///
+        /// Call this method when you're done with the file to clean up disk space.
+        /// This is especially important for large files or when creating many requests.
+        ///
+        /// - Returns: `true` if the file was successfully removed, `false` otherwise
+        public func cleanup() -> Bool {
+            do {
+                try FileManager.default.removeItem(at: url)
+                return true
+            } catch {
+                return false
+            }
+        }
     }
 
     /// Represents a single part in a multipart form.

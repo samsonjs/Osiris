@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 import UIKit
 
-private let log = Logger(subsystem: "co.1se.Osiris", category: "Service")
+private let log = Logger(subsystem: "net.samhuri.Osiris", category: "Service")
 
 enum ServiceError: Error {
     case malformedRequest(HTTPRequest)
@@ -145,15 +145,15 @@ final class Service {
             log.error("Invalid request \(request): \(error)")
             throw ServiceError.malformedRequest(request)
         }
-        
+
         let start = Date()
         let (data, response) = try await urlSession.data(for: urlRequest)
         let httpResponse = HTTPResponse(response: response, data: data, error: nil)
-        
+
         let end = Date()
         let duration = end.timeIntervalSince1970 - start.timeIntervalSince1970
         logRequest(request, response: httpResponse, duration: duration)
-        
+
         return httpResponse
     }
 
