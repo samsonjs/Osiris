@@ -27,7 +27,8 @@ class HTTPRequestErrorTests: XCTestCase {
     func testErrorDescriptionIsNeverNil() {
         let allErrors: [HTTPRequestError] = [
             .http,
-            .unknown
+            .unknown,
+            .invalidRequestBody
         ]
 
         for error in allErrors {
@@ -39,7 +40,8 @@ class HTTPRequestErrorTests: XCTestCase {
     func testFailureReasonIsNeverNil() {
         let allErrors: [HTTPRequestError] = [
             .http,
-            .unknown
+            .unknown,
+            .invalidRequestBody
         ]
 
         for error in allErrors {
@@ -51,12 +53,20 @@ class HTTPRequestErrorTests: XCTestCase {
     func testRecoverySuggestionIsNeverNil() {
         let allErrors: [HTTPRequestError] = [
             .http,
-            .unknown
+            .unknown,
+            .invalidRequestBody
         ]
 
         for error in allErrors {
             XCTAssertNotNil(error.recoverySuggestion)
             XCTAssertFalse(error.recoverySuggestion!.isEmpty)
         }
+    }
+
+    func testInvalidRequestBodyError() {
+        let error = HTTPRequestError.invalidRequestBody
+        XCTAssertEqual(error.localizedDescription, "GET and DELETE requests cannot have a body")
+        XCTAssertEqual(error.failureReason, "The HTTP method does not support a request body")
+        XCTAssertEqual(error.recoverySuggestion, "Use query parameters instead of a request body for GET and DELETE requests")
     }
 }

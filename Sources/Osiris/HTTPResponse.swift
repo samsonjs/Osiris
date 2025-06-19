@@ -7,7 +7,7 @@
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPResponse")
+private let log = Logger(subsystem: "net.samhuri.Osiris", category: "HTTPResponse")
 
 /// A response from an HTTP request that simplifies URLSession's completion handler parameters.
 ///
