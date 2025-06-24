@@ -7,7 +7,7 @@
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPResponse")
+private let log = Logger(subsystem: "net.samhuri.Osiris", category: "HTTPResponse")
 
 /// A response from an HTTP request that simplifies URLSession's completion handler parameters.
 ///
@@ -22,10 +22,10 @@ private let log = Logger(subsystem: "co.1se.Osiris", category: "HTTPResponse")
 ///     let httpResponse = HTTPResponse(response: response, data: data, error: error)
 ///
 ///     switch httpResponse {
-///     case .success(let httpURLResponse, let data):
+///     case let .success(httpURLResponse, data):
 ///         print("Success: \(httpURLResponse.statusCode)")
 ///         // Handle successful response
-///     case .failure(let error, let httpURLResponse, let data):
+///     case let .failure(error, httpURLResponse, data):
 ///         print("Failed: \(error)")
 ///         // Handle error response
 ///     }

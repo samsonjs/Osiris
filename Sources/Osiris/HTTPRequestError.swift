@@ -15,12 +15,17 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
     /// An unknown error occurred (typically when URLResponse isn't HTTPURLResponse).
     case unknown
 
+    /// Invalid request body for the HTTP method.
+    case invalidRequestBody
+
     public var errorDescription: String? {
         switch self {
         case .http:
             return "HTTP request failed with non-2xx status code"
         case .unknown:
             return "An unknown error occurred"
+        case .invalidRequestBody:
+            return "GET and DELETE requests cannot have a body"
         }
     }
 
@@ -30,6 +35,8 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             return "The server returned an error status code"
         case .unknown:
             return "An unexpected error occurred during the request"
+        case .invalidRequestBody:
+            return "The HTTP method does not support a request body"
         }
     }
 
@@ -39,6 +46,8 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             return "Check the server response for error details"
         case .unknown:
             return "Check network connectivity and try again"
+        case .invalidRequestBody:
+            return "Use query parameters instead of a request body for GET and DELETE requests"
         }
     }
 
@@ -48,6 +57,8 @@ public enum HTTPRequestError: Error, LocalizedError, CustomStringConvertible {
             "HTTPRequestError.http"
         case .unknown:
             "HTTPRequestError.unknown"
+        case .invalidRequestBody:
+            "HTTPRequestError.invalidRequestBody"
         }
     }
 }

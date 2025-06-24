@@ -6,30 +6,30 @@
 
 import Foundation
 import OSLog
+import UniformTypeIdentifiers
 
-private let log = Logger(subsystem: "co.1se.Osiris", category: "RequestBuilder")
+private let log = Logger(subsystem: "net.samhuri.Osiris", category: "RequestBuilder")
 
-/// Errors that can occur when building URLRequest from HTTPRequest.
+/// Errors that can occur when building URLRequest from ``HTTPRequest``.
 public enum RequestBuilderError: Error {
 
     /// The form data could not be encoded properly.
     case invalidFormData(HTTPRequest)
 }
 
-/// Converts HTTPRequest instances to URLRequest for use with URLSession.
+/// Converts ``HTTPRequest`` instances to URLRequest for use with URLSession.
 ///
-/// RequestBuilder handles the encoding of different content types including JSON,
+/// ``RequestBuilder`` handles the encoding of different content types including JSON,
 /// form-encoded parameters, and multipart forms. For multipart forms, it encodes
-/// everything in memory, so consider using the MultipartFormEncoder directly for
-/// large files that should be streamed.
+/// everything in memory, so consider using the ``MultipartFormEncoder`` directly to
+/// encode large files to disk for streaming.
 ///
 /// ## Usage
 ///
 /// ```swift
-/// let httpRequest = HTTPRequest.post(
-///     URL(string: "https://api.example.net/users")!,
-///     contentType: .json,
-///     parameters: ["name": "Jane", "email": "jane@example.net"]
+/// let httpRequest = HTTPRequest.postJSON(
+///     URL(string: "https://trails.example.net/riders")!,
+///     body: ["name": "Trent Reznor", "email": "trent@example.net", "bike": "Santa Cruz Nomad"]
 /// )
 ///
 /// let urlRequest = try RequestBuilder.build(request: httpRequest)
@@ -40,7 +40,7 @@ public enum RequestBuilderError: Error {
 /// ```
 public final class RequestBuilder {
 
-    /// Converts an HTTPRequest to a URLRequest ready for use with URLSession.
+    /// Converts an ``HTTPRequest`` to a URLRequest ready for use with URLSession.
     ///
     /// This method handles encoding of parameters according to the request's method and content type:
     /// - **GET/DELETE**: Parameters are encoded as query string parameters
@@ -49,14 +49,14 @@ public final class RequestBuilder {
     /// - `.multipart`: Parts are encoded as multipart/form-data (in memory)
     /// - `.none`: Falls back to form encoding for compatibility
     ///
-    /// - Parameter request: The HTTPRequest to convert
+    /// - Parameter request: The ``HTTPRequest`` to convert
     /// - Returns: A URLRequest ready for URLSession
-    /// - Throws: `RequestBuilderError.invalidFormData` if form encoding fails, if GET/DELETE
+    /// - Throws: ``RequestBuilderError/invalidFormData(_:)`` if form encoding fails, if GET/DELETE
     ///           requests contain multipart parts, or various encoding errors from JSONSerialization
-    ///           or MultipartFormEncoder
+    ///           or ``MultipartFormEncoder``
     ///
     /// - Warning: Multipart requests are encoded entirely in memory. For large files,
-    ///            consider using MultipartFormEncoder.encodeFile() directly
+    ///            consider using ``MultipartFormEncoder/encodeFile(parts:to:)`` to encode to disk first
     public class func build(request: HTTPRequest) throws -> URLRequest {
         var result = URLRequest(url: request.url)
         result.httpMethod = request.method.string
@@ -65,55 +65,67 @@ public final class RequestBuilder {
             result.addValue(value, forHTTPHeaderField: name)
         }
 
-        // Handle parameters based on HTTP method
-        if request.method == .get || request.method == .delete, let params = request.parameters {
-            // Validate that GET and DELETE requests don't want request bodies, which we don't support.
-            guard request.contentType != .multipart, request.parts.isEmpty else {
-                throw RequestBuilderError.invalidFormData(request)
+        // Handle body content based on HTTP method and body type
+        switch request.body {
+        case .none:
+            break
+        case let .formParameters(params):
+            if request.method == .get || request.method == .delete {
+                try encodeQueryParameters(to: &result, parameters: params)
+            } else {
+                try encodeFormParameters(to: &result, request: request, parameters: params)
             }
-            try encodeQueryParameters(to: &result, parameters: params)
-        } else if !request.parts.isEmpty || request.contentType == .multipart {
-            if request.contentType != .multipart {
-                log.info("Encoding request as multipart, overriding its content type of \(request.contentType)")
+        case let .jsonParameters(params):
+            if request.method == .get || request.method == .delete {
+                try encodeQueryParameters(to: &result, parameters: params)
+            } else {
+                try encodeJSONParameters(to: &result, parameters: params)
             }
-            try encodeMultipartContent(to: &result, request: request)
-        } else if let params = request.parameters {
-            try encodeParameters(to: &result, request: request, parameters: params)
+        case let .data(data, contentType):
+            result.httpBody = data
+            let mimeType = contentType.preferredMIMEType ?? "application/octet-stream"
+            if request.headers["Content-Type"] != nil {
+                log.warning("Overriding existing Content-Type header with \(mimeType) for data body")
+            }
+            result.addValue(mimeType, forHTTPHeaderField: "Content-Type")
+        case let .multipart(parts):
+            try encodeMultipartContent(to: &result, parts: parts)
+        case let .fileData(fileURL):
+            try encodeFileData(to: &result, fileURL: fileURL)
         }
 
         return result
     }
 
-    private class func encodeMultipartContent(to urlRequest: inout URLRequest, request: HTTPRequest) throws {
+    private class func encodeMultipartContent(to urlRequest: inout URLRequest, parts: [MultipartFormEncoder.Part]) throws {
         let encoder = MultipartFormEncoder()
-        let body = try encoder.encodeData(parts: request.parts)
+        let body = try encoder.encodeData(parts: parts)
+
+        if urlRequest.value(forHTTPHeaderField: "Content-Type") != nil {
+            log.warning("Overriding existing Content-Type header with \(body.contentType) for multipart body")
+        }
+        if urlRequest.value(forHTTPHeaderField: "Content-Length") != nil {
+            log.warning("Overriding existing Content-Length header with \(body.contentLength) for multipart body")
+        }
+
         urlRequest.addValue(body.contentType, forHTTPHeaderField: "Content-Type")
         urlRequest.addValue("\(body.contentLength)", forHTTPHeaderField: "Content-Length")
         urlRequest.httpBody = body.data
     }
 
-    private class func encodeParameters(to urlRequest: inout URLRequest, request: HTTPRequest, parameters: [String: any Sendable]) throws {
-        switch request.contentType {
-        case .json:
-            try encodeJSONParameters(to: &urlRequest, parameters: parameters)
-
-        case .none:
-            log.warning("Cannot serialize parameters without a content type, falling back to form encoding")
-            fallthrough
-        case .formEncoded:
-            try encodeFormParameters(to: &urlRequest, request: request, parameters: parameters)
-
-        case .multipart:
-            try encodeMultipartContent(to: &urlRequest, request: request)
-        }
-    }
 
     private class func encodeJSONParameters(to urlRequest: inout URLRequest, parameters: [String: any Sendable]) throws {
+        if urlRequest.value(forHTTPHeaderField: "Content-Type") != nil {
+            log.warning("Overriding existing Content-Type header with application/json for JSON body")
+        }
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: parameters, options: [])
     }
 
     private class func encodeFormParameters(to urlRequest: inout URLRequest, request: HTTPRequest, parameters: [String: any Sendable]) throws {
+        if urlRequest.value(forHTTPHeaderField: "Content-Type") != nil {
+            log.warning("Overriding existing Content-Type header with application/x-www-form-urlencoded for form body")
+        }
         urlRequest.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         guard let formData = FormEncoder.encode(parameters).data(using: .utf8) else {
             throw RequestBuilderError.invalidFormData(request)
@@ -139,4 +151,30 @@ public final class RequestBuilder {
 
         urlRequest.url = components?.url ?? url
     }
+
+    private class func encodeFileData(to urlRequest: inout URLRequest, fileURL: URL) throws {
+        let inputStream = InputStream(url: fileURL)
+        urlRequest.httpBodyStream = inputStream
+
+        // Try to get file size for Content-Length header
+        if let fileAttributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+           let fileSize = fileAttributes[.size] as? Int {
+            if urlRequest.value(forHTTPHeaderField: "Content-Length") != nil {
+                log.warning("Overriding existing Content-Length header with \(fileSize) for file data")
+            }
+            urlRequest.addValue("\(fileSize)", forHTTPHeaderField: "Content-Length")
+        }
+
+        // Try to determine Content-Type from file extension
+        let fileExtension = fileURL.pathExtension
+        if !fileExtension.isEmpty,
+           let utType = UTType(filenameExtension: fileExtension),
+           let mimeType = utType.preferredMIMEType {
+            if urlRequest.value(forHTTPHeaderField: "Content-Type") != nil {
+                log.warning("Overriding existing Content-Type header with \(mimeType) for file data")
+            }
+            urlRequest.addValue(mimeType, forHTTPHeaderField: "Content-Type")
+        }
+    }
 }
+
