@@ -33,14 +33,14 @@
 - Swap `HTTPRequest.patch(url, contentType: .json, parameters: params)` for `HTTPRequest.patchJSON(url, body: params)`
 - For multipart requests, use `HTTPRequest.postMultipart(url, parts: parts)` instead of setting the `parts` property directly
 
-[2.1.0]: https://github.com/samsonjs/Osiris/compare/2.0.1...main
+[2.1.0]: https://git.samhuri.net/sjs/Osiris/compare/2.0.1...main
 
 ## [2.0.1] - 2025-06-15
 
 ### Fixed
 - GET and DELETE requests with empty parameters no longer include unnecessary question mark in URL
 
-[2.0.1]: https://github.com/samsonjs/Osiris/compare/2.0.0...2.0.1
+[2.0.1]: https://git.samhuri.net/sjs/Osiris/compare/2.0.0...2.0.1
 
 ## [2.0.0] - 2025-06-15
 
@@ -54,7 +54,7 @@
 - **Error handling** - More specific error cases with `LocalizedError` conformance
 - **Debugging support** - All types now conform to `CustomStringConvertible` with idiomatic descriptions for better OSLog output
 
-[2.0.0]: https://github.com/samsonjs/Osiris/compare/1.0.0...2.0.0
+[2.0.0]: https://git.samhuri.net/sjs/Osiris/compare/1.0.0...2.0.0
 
 ## [1.0.0] - 2017-07-28
 
@@ -64,4 +64,4 @@
 - RequestBuilder for URLRequest conversion
 - FormEncoder for URL-encoded forms
 
-[1.0.0]: https://github.com/samsonjs/Osiris/releases/tag/1.0.0
+[1.0.0]: https://git.samhuri.net/sjs/Osiris/releases/tag/1.0.0
