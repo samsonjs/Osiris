@@ -269,6 +269,7 @@ class HTTPRequestTests: XCTestCase {
 
     // MARK: - Deprecated API Tests
 
+    @available(*, deprecated)
     func testDeprecatedPOSTWithContentType() {
         let params = ["name": "Chali 2na", "email": "chali@example.net"]
 
@@ -297,6 +298,7 @@ class HTTPRequestTests: XCTestCase {
         XCTAssertTrue(emptyRequest.body.isEmpty)
     }
 
+    @available(*, deprecated)
     func testDeprecatedPUTWithContentType() {
         let params = ["status": "active"]
 
@@ -310,6 +312,7 @@ class HTTPRequestTests: XCTestCase {
         }
     }
 
+    @available(*, deprecated)
     func testDeprecatedPATCHWithContentType() {
         let params = ["field": "value"]
 
@@ -323,6 +326,7 @@ class HTTPRequestTests: XCTestCase {
         }
     }
 
+    @available(*, deprecated)
     func testDeprecatedInitializer() {
         let params = ["key": "value"]
 
@@ -355,6 +359,7 @@ class HTTPRequestTests: XCTestCase {
         }
     }
 
+    @available(*, deprecated)
     func testDeprecatedParametersProperty() {
         let params = ["test": "value", "number": 42] as [String: any Sendable]
 
@@ -382,6 +387,7 @@ class HTTPRequestTests: XCTestCase {
         XCTAssertTrue(request.body.isEmpty)
     }
 
+    @available(*, deprecated)
     func testDeprecatedPartsProperty() {
         let parts = [
             MultipartFormEncoder.Part.text("value", name: "field"),
