@@ -14,6 +14,7 @@
 - `CodableRequest<Response>` - Replaced with direct HTTPRequest Codable support for simplicity
 
 ### Changed
+- CI fails on Swift compiler warnings
 - Minimum deployment targets changed to ones that actually build: iOS 16.0 and macOS 13.0
 - `HTTPRequest` now uses `HTTPRequestBody` enum internally for better type safety
 - GET and DELETE requests now properly encode parameters as query strings instead of ignoring them
